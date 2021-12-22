@@ -1,5 +1,4 @@
-
-  (function () {
+(function () {
     let jQueryBopis;
     let $location;
     let backdrop;
@@ -12,7 +11,6 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = 'https://demo-hc.hotwax.io';
-    const resourceUrl = 'https://1ca6-111-118-250-178.ngrok.io';
 
     let loadScript = function(url, callback){
 
@@ -118,8 +116,8 @@
         if (location.pathname.includes('products')) {
 
             // loading css file, commented it as we have stored css directly in the store assets
-            jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${resourceUrl}/shopify-tag.css">`);
-            // jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${resourceUrl}/hc-custom-css.css">`);
+            jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/shopify-tag.css">`);
+            jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/hc-custom-css.css">`);
 
             if (!localStorage.getItem('accessToken')) {
                 await getAccessToken(false);
