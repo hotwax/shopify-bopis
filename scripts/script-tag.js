@@ -117,7 +117,7 @@
 
             // loading css file, commented it as we have stored css directly in the store assets
             jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/shopify-tag.css">`);
-            jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/hc-custom-css.css">`);
+            // jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/hc-custom-css.css">`);
 
             if (!localStorage.getItem('accessToken')) {
                 await getAccessToken(false);
@@ -363,8 +363,9 @@
             jQueryBopis('.hc-store-not-found').append('No stores found for current product');
         }
 
-        jQueryBopis('h4:empty').hide();
-        jQueryBopis('p:empty').hide();
+        // hide all the h4 and p tags which are empty in the modal
+        hcModalContent.find('h4:empty').hide();
+        hcModalContent.find('p:empty').hide();
     }
     
     // will add product to cart with a custom property pickupstore
@@ -378,10 +379,10 @@
         // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
         jQueryBopis(document).trigger('prePickUp');
 
-        let facilityIdInput = jQueryBopis(`<input id="hc-pickupstore" name="properties[pickupstore]" value=${store.storeCode} type="hidden"/>`)
+        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[pickupstore]" value=${store.storeCode} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
-        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore" name="properties[Pickup Store]" value="${store.locationName}, ${store.address.addressLines[0]}, ${store.address.locality}, ${store.address.administrativeArea}, ${store.address.postalCode}, ${store.address.regionCode}" type="hidden"/>`)
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.locationName}, ${store.address.addressLines[0]}, ${store.address.locality}, ${store.address.administrativeArea}, ${store.address.postalCode}, ${store.address.regionCode}" type="hidden"/>`)
         addToCartForm.append(facilityNameInput)
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
