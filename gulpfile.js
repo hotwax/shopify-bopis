@@ -5,8 +5,8 @@ var rename = require('gulp-rename');
 
 function minifyJS() {
   return src([
-    'public/*.js',
-    '!public/*.min.js'
+    'scripts/*.js',
+    '!scripts/*.min.js'
   ])
   .pipe(minify({
     ext: {
@@ -14,19 +14,19 @@ function minifyJS() {
       min: '.min.js'
     }
   }))
-  .pipe(dest('public'));
+  .pipe(dest('scripts'));
 }
 
 function minifyCSS () {
   return src([
-    'public/*.css',
-    '!public/*.min.css'
+    'scripts/*.css',
+    '!scripts/*.min.css'
   ])
   .pipe(cleanCss())
   .pipe(rename({
     suffix: '.min'
   }))
-  .pipe(dest('public'));
+  .pipe(dest('scripts'));
 }
 
 exports.default = parallel(minifyJS, minifyCSS);
