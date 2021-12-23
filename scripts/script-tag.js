@@ -10,7 +10,7 @@
 
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
-    let baseUrl = 'https://demo-hc.hotwax.io';
+    let baseUrl = '';
 
     let loadScript = function(url, callback){
 
@@ -146,7 +146,7 @@
     }
 
     function getStoreInformation (pin) {
-        let accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJ1c2VyTG9naW5JZCI6ImFhcm9uLndhZ25lciIsImlzcyI6IkFwYWNoZU9GQml6IiwiZXhwIjoxNjU2MDMzMzEwLCJpYXQiOjE2NDAyNTMzMTB9.s15d7bydwPx715L6ktIohLczzeD0PK9Lxhhwf7DJ5shLgE0_EwoTBJAhecDeL5e4v6mDi5j8q9ZF0qIG9S8I_Q";
+        let accessToken = "";
         // defined the distance to find the stores in this much radius area
         let distance = 50;
 
