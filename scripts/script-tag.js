@@ -10,7 +10,7 @@
 
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
-    let baseUrl = 'https://demo-hc.hotwax.io';
+    let baseUrl = '';
 
     let loadScript = function(url, callback){
 
@@ -35,43 +35,26 @@
         
     };
 
+    // adding css in the current page
+    let style = document.createElement("link");
+    style.rel = 'stylesheet';
+    style.type = 'text/css';
+    style.href = `${baseUrl}/api/shopify-tag.min.css`;
+
+    document.getElementsByTagName("head")[0].appendChild(style);
+
     if ((typeof jQuery === 'undefined') || (parseFloat(jQuery.fn['jquery']) < 1.7)) {
         loadScript('//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js', function(){
-          jQueryBopis = jQuery.noConflict(true);
-          jQueryBopis(document).ready(function() {
-              initialiseBopis();
-          });
-
+            jQueryBopis = jQuery.noConflict(true);
+            jQueryBopis(document).ready(function() {
+                initialiseBopis();
+            });
         });
     } else {
         jQueryBopis = jQuery;
         jQuery(document).ready(function() {
             initialiseBopis();
         });
-    }
-
-    function getAccessToken (refresh) {
-        return new Promise(function(resolve, reject) {
-            jQueryBopis.ajax({
-                type: 'POST',
-                url: `${baseUrl}/api/getGMBToken`,
-                crossDomain: true,
-                data: refresh ? JSON.stringify({
-                    "refresh": true
-                }) : JSON.stringify({}),
-                dataType: "json",
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                success: function (data) {
-                    localStorage.setItem('accessToken', data.accessToken)
-                    resolve(data.accessToken)
-                },
-                error: function (err) {
-                    reject(err);
-                }
-            })
-        })
     }
 
     // function to get co-ordinates of the user after successfully getting the location
@@ -114,14 +97,6 @@
 
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
-
-            // loading css file, commented it as we have stored css directly in the store assets
-            jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/shopify-tag.css">`);
-            // jQueryBopis('head').append(`<link rel="stylesheet" type="text/css" href="${baseUrl}/api/hc-custom-css.css">`);
-
-            if (!localStorage.getItem('accessToken')) {
-                await getAccessToken(false);
-            }
 
             await getCurrentLocation();
 
@@ -170,21 +145,43 @@
         }
     }
 
-    function getStoreInformation (accessToken, pin) {
-        let account = "100642139089425989218";
+    function getStoreInformation (queryString) {
+        let accessToken = "";
         // defined the distance to find the stores in this much radius area
         let distance = 50;
+
+        const query = !($location) || queryString ? {
+            "json": {
+                "params": {
+                    "q.op": "AND",
+                    "qf": "postalCode city state country storeCode storeName",
+                    "defType" : "edismax"
+                },
+                "query": `(*${queryString}*) OR \"${queryString}\"^100`,
+                "filter": "docType:STORE"
+            }
+        } : {
+            "json": {
+                "params": {
+                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
+                    "pt": `${$location.latitude}, ${$location.longitude}`,
+                    "d": `${distance}`,
+                    "fq": "{!geofilt}",
+                    "sort": "geodist() asc",
+                    "sfield": "latlon"
+                }
+            }
+        }
 
         // applied a condition that if we have location permission then searching the stores for the current location
         // if we have both location and pin, then using the pin to search for stores
         // if we doesn't have location permission and pin, then will fetch all the available stores
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
-                type: 'GET',
-                url: !($location) || pin ? 
-                `https://mybusiness.googleapis.com/v4/accounts/${account}/locations?filter=address.postal_code=%22${pin}%22+AND+open_info.status=OPEN` : 
-                `https://mybusiness.googleapis.com/v4/accounts/${account}/locations?filter=distance(latlng, geopoint(${$location.latitude}, ${$location.longitude}))<${distance}`,
+                type: 'POST',
+                url: `${baseUrl}/api/solr-query`,
                 crossDomain: true,
+                data: JSON.stringify(query),
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + accessToken
@@ -242,18 +239,9 @@
         event.preventDefault();
         event.stopImmediatePropagation();
 
-        const pin = jQueryBopis("#hc-bopis-store-pin").val();
-        let storeInformation = '', result = '';
-
-        // loop to update the token if we are getting any error
-        // TODO: can apply a condition defining the number of times we should refresh a token
-        while(true) {
-            storeInformation = await getStoreInformation(localStorage.getItem('accessToken'), pin).then(data => data).catch(err => err);
-            if (storeInformation != "error") {
-                break;
-            }
-            await getAccessToken(true);
-        }
+        const queryString = jQueryBopis("#hc-bopis-store-pin").val();
+        let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
+        let result = '';
 
         const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
         
@@ -265,14 +253,13 @@
         eventTarget.prop("disabled", true);
 
         // checking if the number of stores is greater then 0 then creating a payload to check inventory
-        if (storeInformation.totalSize > 0) {
+        if (storeInformation?.response?.numFound > 0) {
 
-            let storeCodes = storeInformation.locations.map((store) => {
+            let storeCodes = storeInformation.response.docs.map((store) => {
                 let storeCode = '';
 
                 // if storeCode starts with DC_ then removing the code
-                if (store.storeCode.startsWith('DC_'))
-                {
+                if (store.storeCode.startsWith('DC_')) {
                     storeCode = store.storeCode.substring(3);
                 } else {
                     storeCode = store.storeCode;
@@ -288,7 +275,7 @@
 
             // mapping the inventory result with the locations to filter those stores whose inventory
             // is present and the store code is present in the locations.
-            result = storeInformation.locations.filter((location) => {
+            result = storeInformation.response.docs.filter((location) => {
                 return result.docs.some((doc) => {
                     return doc.facilityId === location.storeCode && doc.atp > 0;
                 })
@@ -340,8 +327,8 @@
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
                 <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.locationName ? store.locationName : ''}</h4><p>${store.address ? store.address.addressLines[0] : ''}</p><p>${store.address.locality ? store.address.locality : ''} ${store.address.administrativeArea ? store.address.administrativeArea : ''} ${store.address.regionCode ? store.address.regionCode : ''}</p></div>
-                    <div id="hc-details-column"><p>In stock</p><p>${store.phone ? store.phone : ''}</p><p>Open Today: ${ store.regularHours ? tConvert(openData(store.regularHours).openTime) : ''} - ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
+                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
+                    <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
                 let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
@@ -358,10 +345,10 @@
 
             //check whether the storeCard contains any children, if not then displaying error
             if (!jQueryBopis('.hc-store-information').children().length) {
-                jQueryBopis('.hc-store-not-found').html('No stores found for current product');
+                jQueryBopis('.hc-store-not-found').html('No stores found for this product');
             }
         } else {
-            jQueryBopis('.hc-store-not-found').append('No stores found for current product');
+            jQueryBopis('.hc-store-not-found').append('No stores found for this product');
         }
 
         // hide all the h4 and p tags which are empty in the modal
@@ -380,10 +367,10 @@
         // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
         jQueryBopis(document).trigger('prePickUp');
 
-        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[pickupstore]" value=${store.storeCode} type="hidden"/>`)
+        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
-        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.locationName}, ${store.address.addressLines[0]}, ${store.address.locality}, ${store.address.administrativeArea}, ${store.address.postalCode}, ${store.address.regionCode}" type="hidden"/>`)
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}, ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''}, ${store.countryCode ? store.countryCode : ''}" type="hidden"/>`)
         addToCartForm.append(facilityNameInput)
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
