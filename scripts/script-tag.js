@@ -39,7 +39,7 @@
     let style = document.createElement("link");
     style.rel = 'stylesheet';
     style.type = 'text/css';
-    style.href = `${baseUrl}/api/shopify-tag.css`;
+    style.href = `${baseUrl}/api/shopify-tag.min.css`;
 
     document.getElementsByTagName("head")[0].appendChild(style);
 
