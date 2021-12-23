@@ -145,18 +145,20 @@
         }
     }
 
-    function getStoreInformation (pin) {
+    function getStoreInformation (queryString) {
         let accessToken = "";
         // defined the distance to find the stores in this much radius area
         let distance = 50;
 
-        // we only have support of searching using postalCode or current location
-        const query = !($location) || pin ? {
+        const query = !($location) || queryString ? {
             "json": {
                 "params": {
-                    "q": `docType:STORE AND postalCode: ${pin}`,
-                    "q.op": "AND"
-                }
+                    "q.op": "AND",
+                    "qf": "postalCode city state country storeCode storeName",
+                    "defType" : "edismax"
+                },
+                "query": `(*${queryString}*) OR \"${queryString}\"^100`,
+                "filter": "docType:STORE"
             }
         } : {
             "json": {
@@ -237,8 +239,8 @@
         event.preventDefault();
         event.stopImmediatePropagation();
 
-        const pin = jQueryBopis("#hc-bopis-store-pin").val();
-        let storeInformation = await getStoreInformation(pin).then(data => data).catch(err => err);
+        const queryString = jQueryBopis("#hc-bopis-store-pin").val();
+        let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
         const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
