@@ -253,7 +253,7 @@
         eventTarget.prop("disabled", true);
 
         // checking if the number of stores is greater then 0 then creating a payload to check inventory
-        if (storeInformation?.response?.numFound > 0) {
+        if (storeInformation && storeInformation.response && storeInformation.response.numFound > 0) {
 
             let storeCodes = storeInformation.response.docs.map((store) => {
                 let storeCode = '';
