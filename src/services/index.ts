@@ -4,8 +4,7 @@ const generateAccessToken = async (query: any): Promise <any>  => {
   return api({
     url: "/generateShopifyAccessToken",
     method: "post",
-    data: query,
-    cache: true
+    data: query
   });
 }
 
