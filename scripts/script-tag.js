@@ -375,10 +375,6 @@
         addToCartForm.append(facilityNameInput)
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
-
-        addToCartForm.append(facilityNameInput)
-
-        // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
         jQueryBopis.ajax({
             type: "POST",
             url: '/cart/add.js',
