@@ -150,10 +150,13 @@
         let accessToken = "";
         // defined the distance to find the stores in this much radius area
         let distance = 50;
+        // viewSize is used to define the number of stores to fetch
+        let viewSize = 50;
 
         const query = !($location) || queryString ? {
             "json": {
                 "params": {
+                    "rows": `${viewSize}`,
                     "q.op": "AND",
                     "qf": "postalCode city state country storeCode storeName",
                     "defType" : "edismax"
@@ -164,6 +167,7 @@
         } : {
             "json": {
                 "params": {
+                    "rows": `${viewSize}`,
                     "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
                     "pt": `${$location.latitude}, ${$location.longitude}`,
                     "d": `${distance}`,
@@ -276,11 +280,13 @@
 
             // mapping the inventory result with the locations to filter those stores whose inventory
             // is present and the store code is present in the locations.
-            result = storeInformation.response.docs.filter((location) => {
-                return result.docs.some((doc) => {
-                    return doc.facilityId === location.storeCode && doc.atp > 0;
+            if (result.docs) {
+                result = storeInformation.response.docs.filter((location) => {
+                    return result.docs.some((doc) => {
+                        return doc.facilityId === location.storeCode && doc.atp > 0;
+                    })
                 })
-            })
+            }
         }
 
         displayStoreInformation(result)
@@ -323,7 +329,8 @@
         const hcModalContent = jQueryBopis('.hc-modal-content')
     
         //check for result count, result count contains the number of stores count in result
-        if (result.length > 0) {
+        //TODO: find a better approach to handle the error secenario
+        if (result.length > 0 && !result.includes('error')) {
             result.map(async (store) => {
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
