@@ -9,7 +9,7 @@ p {
 .hc-bopis-modal {
     display: none;
     position: fixed;
-    z-index: 101;
+    z-index: 2001;
     left: 0;
     top: 0;
     width: 100%;
@@ -74,7 +74,7 @@ p {
     top: 0;
     left: 0;
     opacity: 50%;
-    z-index: 100;
+    z-index: 2000;
     backdrop-filter: brightness(0.5);
 }
 
