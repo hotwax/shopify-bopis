@@ -142,7 +142,8 @@
             })
 
         } else if(location.pathname.includes('cart')) {
-            jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
+            // jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
+            jQueryBopis('.cart__text div:contains("pickupstore")').hide();
         }
     }
 
@@ -410,6 +411,9 @@
             url = location.href;
             initialiseBopis();
         }
+        // added condition to run the script again as when removing a product the script does not run
+        // and thus the store id again becomes visible
+        if (location.pathname.includes('cart')) initialiseBopis();
     }).observe(document, {subtree: true, childList: true});
 
 })();
