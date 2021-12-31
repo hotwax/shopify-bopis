@@ -13,6 +13,7 @@
                 v-model="shopOrigin"
                 name="shopOrigin"
                 type="text"
+                placeholder="shop1.myshopify.com"
                 required
               ></ion-input>
             </ion-item>
@@ -46,6 +47,7 @@ import { useRouter } from "vue-router";
 import emitter from "@/event-bus"
 import { generateAccessToken } from "@/services"
 import { getSessionToken } from "@shopify/app-bridge-utils";
+import { useStore } from 'vuex'
 
 export default defineComponent({
   name: "Install",
@@ -61,7 +63,8 @@ export default defineComponent({
   data() {
     return {
       apiKey: process.env.VUE_APP_SHOPIFY_API_KEY,
-      shopOrigin: 'hc-sandbox.myshopify.com',
+      shopConfigs: JSON.parse(process.env.VUE_APP_SHOPIFY_SHOP_CONFIG),
+      shopOrigin: '',
       session: this.$route.query['session'],
       hmac: this.$route.query['hmac'],
       shop: this.$route.query['shop'],
@@ -73,9 +76,12 @@ export default defineComponent({
   },
   async mounted () {
     const shop = this.shop || this.shopOrigin
+    const shopConfig = this.shopConfigs[shop];
+    const apiKey = shopConfig ? shopConfig.apiKey : '';
+    const oms = shopConfig ? shopConfig.oms : '';
     if (this.session) {
       const app = createApp({
-        apiKey: this.apiKey,
+        apiKey: apiKey,
         host: this.host
       });
       const sessionToken = await getSessionToken(app);
@@ -87,27 +93,34 @@ export default defineComponent({
     } else if (this.code) {
       // TODO store returned status and perform operation based upon it
       await generateAccessToken({
+        data: {
         "code": this.code,
         "shop": shop,
-        "clientId": this.apiKey,
+        "clientId": apiKey,
         "host": this.host,
         "hmac": this.hmac,
         "timestamp": this.timestamp
+        },
+        baseURL: `https://${oms}.hotwax.io/api/`
       }).then(resp => resp.json()).then(data => data.status).catch(err => console.warn(err));
       // TODO Navigate user based upon the status
-      const appURL = `https://${this.shop}/admin/apps/${this.apiKey}`;
+      const appURL = `https://${shop}/admin/apps/${apiKey}`;
       window.location.assign(appURL);
     } else if (this.shop || this.host) {
-      this.authorise(this.shop, this.host, this.apiKey);
+      this.authorise(shop, this.host, apiKey);
     }
   },
   methods: {
     install(shopOrigin) {
-      this.authorise(shopOrigin, undefined, this.apiKey);
+      const shopConfig = this.shopConfigs[shopOrigin];
+      const apiKey = shopConfig ? shopConfig.apiKey : '';
+      this.authorise(shopOrigin, undefined, apiKey);
     },
     authorise(shop, host, apiKey) {
       const scopes = process.env.VUE_APP_SHOPIFY_SCOPES
       emitter.emit("presentLoader");
+      const shopConfig = this.shopConfigs[shop];
+      if (!apiKey) apiKey = shopConfig ? shopConfig.apiKey : '';
       const redirectUri = process.env.VUE_APP_SHOPIFY_REDIRECT_URI;
       const permissionUrl = `https://${shop}/admin/oauth/authorize?client_id=${apiKey}&scope=${scopes}&redirect_uri=${redirectUri}`;
 
@@ -128,8 +141,10 @@ export default defineComponent({
   },
   setup() {
     const router = useRouter();
+    const store = useStore();
     return {
       router,
+      store,
       showToast,
     };
   },
