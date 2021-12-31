@@ -94,6 +94,7 @@ p {
 @media (min-width: 997px) {
     .hc-modal-content {
         width: 50%;
+        max-width: 600px;
     }
 }
 
