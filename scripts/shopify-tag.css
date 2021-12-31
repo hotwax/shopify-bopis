@@ -78,8 +78,8 @@ p {
     backdrop-filter: brightness(0.5);
 }
 
-#hc-store-information {
-    max-height: 250px;
+.hc-store-information {
+    padding-top: 20px;
 }
 
 #hc-store-details {
