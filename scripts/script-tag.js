@@ -142,8 +142,7 @@
             })
 
         } else if(location.pathname.includes('cart')) {
-            // jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
-            jQueryBopis('.cart__text div:contains("pickupstore")').hide();
+            jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
         }
     }
 
