@@ -162,7 +162,7 @@
                     "defType" : "edismax"
                 },
                 "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE"
+                "filter": "docType:STORE AND storeType: RETAIL_STORE"
             }
         } : {
             "json": {
