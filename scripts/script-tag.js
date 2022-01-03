@@ -162,13 +162,13 @@
                     "defType" : "edismax"
                 },
                 "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE AND storeType: RETAIL_STORE"
+                "filter": "docType:STORE"
             }
         } : {
             "json": {
                 "params": {
                     "rows": `${viewSize}`,
-                    "q": "docType:STORE AND storeType: RETAIL_STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
+                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
                     "pt": `${$location.latitude}, ${$location.longitude}`,
                     "d": `${distance}`,
                     "fq": "{!geofilt}",
