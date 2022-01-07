@@ -109,7 +109,7 @@
             const cartForm = jQueryBopis("form[action='/cart/add']");
             const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
             
-            let $element = jQueryBopis("form[action='/cart/add']");
+            let $element = jQueryBopis(".hc_bopis_button");
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
