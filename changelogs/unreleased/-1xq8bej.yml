@@ -1,0 +1,7 @@
+---
+title: 'Removed: the store type search from the solr-query and displayed store information
+  on modal load'
+ticket_id: "#1xq8bej"
+merge_request: 12
+author: Yash Maheshwari
+type: changed

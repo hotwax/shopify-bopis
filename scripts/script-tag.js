@@ -141,6 +141,8 @@
                 }
             })
 
+            handleAddToCartEvent();
+
         } else if(location.pathname.includes('cart')) {
             jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
         }
@@ -162,13 +164,13 @@
                     "defType" : "edismax"
                 },
                 "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE AND storeType: RETAIL_STORE"
+                "filter": "docType:STORE"
             }
         } : {
             "json": {
                 "params": {
                     "rows": `${viewSize}`,
-                    "q": "docType:STORE AND storeType: RETAIL_STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
+                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
                     "pt": `${$location.latitude}, ${$location.longitude}`,
                     "d": `${distance}`,
                     "fq": "{!geofilt}",
@@ -239,10 +241,13 @@
     
     async function handleAddToCartEvent(event) {
 
-        const eventTarget = jQueryBopis(event.target);
-        // to stop event bubbling when clicking on the Check Stores button
-        event.preventDefault();
-        event.stopImmediatePropagation();
+        let eventTarget;
+        if (event) {
+            eventTarget = jQueryBopis(event.target);
+            // to stop event bubbling when clicking on the Check Stores button
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
 
         const queryString = jQueryBopis("#hc-bopis-store-pin").val();
         let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
@@ -255,7 +260,7 @@
         const sku = id;
 
         jQueryBopis('#hc-store-card').remove();
-        eventTarget.prop("disabled", true);
+        if (event) eventTarget.prop("disabled", true);
 
         // checking if the number of stores is greater then 0 then creating a payload to check inventory
         if (storeInformation && storeInformation.response && storeInformation.response.numFound > 0) {
@@ -290,7 +295,7 @@
         }
 
         displayStoreInformation(result)
-        eventTarget.prop("disabled", false);
+        if (event) eventTarget.prop("disabled", false);
     }
 
     function getDay () {
@@ -335,7 +340,7 @@
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
                 <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
+                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
