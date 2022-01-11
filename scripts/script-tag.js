@@ -383,7 +383,7 @@
         let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
-        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}, ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''}, ${store.countryCode ? store.countryCode : ''}" type="hidden"/>`)
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}" type="hidden"/>`)
         addToCartForm.append(facilityNameInput)
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
