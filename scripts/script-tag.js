@@ -169,6 +169,7 @@
             handleAddToCartEvent();
 
         } else if(location.pathname.includes('cart')) {
+            // finding this property on cart page as some themes may display hidden properties on cart page
             jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
         }
     }
@@ -405,7 +406,8 @@
         // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
         jQueryBopis(document).trigger('prePickUp');
 
-        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
+        // made the property hidden by adding underscore before the property name
+        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[_pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
         let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}, ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''}, ${store.countryCode ? store.countryCode : ''}" type="hidden"/>`)
