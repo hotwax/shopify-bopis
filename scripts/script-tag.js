@@ -11,6 +11,7 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = '';
+    let shopUrl = window.origin;
 
     let loadScript = function(url, callback){
 
@@ -95,9 +96,33 @@
     }
 
     // TODO: add preorder check
+    function isProductAvailableForBopis (virtualId) {
+        return new Promise(function(resolve, reject) {
+            jQueryBopis.ajax({
+                type: 'GET',
+                // need to update this endpoint to use correct endpoint for checking the product preorder availability
+                url: `${shopUrl}/admin/products/${virtualId}.json`,
+                crossDomain: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order'))
+                        resolve(true)
+                    else
+                        resolve(false)
+                },
+                error: function (err) {
+                    reject(err)
+                }
+            })
+        })
+    }
 
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
+
+            if (isProductAvailableForBopis(meta.product.id)) return;
 
             await getCurrentLocation();
 
