@@ -122,7 +122,7 @@
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
 
-            if (isProductAvailableForBopis(meta.product.id)) return;
+            if (await isProductAvailableForBopis(meta.product.id)) return;
 
             await getCurrentLocation();
 
