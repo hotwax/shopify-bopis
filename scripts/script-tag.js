@@ -96,7 +96,7 @@
     }
 
     // TODO: add preorder check
-    function isProductAvailableForBopis (virtualId) {
+    function isProductAvailableForBopis (virtualId, variantId) {
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
                 type: 'GET',
@@ -107,8 +107,9 @@
                     'Content-Type': 'application/json'
                 },
                 success: function (data) {
-                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order'))
-                        resolve(true)
+                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
+                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
+                    }
                     else
                         resolve(false)
                 },
@@ -122,8 +123,6 @@
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
 
-            if (await isProductAvailableForBopis(meta.product.id)) return;
-
             await getCurrentLocation();
 
             jQueryBopis(".hc-store-information").remove();
@@ -133,6 +132,8 @@
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
             const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
+
+            if (await isProductAvailableForBopis(meta.product.id, id)) return;
             
             let $element = jQueryBopis("form[action='/cart/add']");
 
