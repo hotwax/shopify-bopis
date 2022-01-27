@@ -376,6 +376,8 @@
                 </div>`);
 
                 let $pickUpButton = jQueryBopis(`<button class="btn btn--secondary-accent hc-store-pick-up-button">${isProductSoldOut ? 'Call Store' : 'Pick Up Here'}</button>`);
+                // added condition to disable button when the product is sold out and storePhone is not present
+                isProductSoldOut && !store.storePhone && $pickUpButton.prop('disabled', true)
 
                 $pickUpButton.on("click", isProductSoldOut ? function () {
                     // checking if storePhone is present then only adding the call functionality
