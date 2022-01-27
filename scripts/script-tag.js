@@ -11,6 +11,7 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = '';
+    let shopUrl = window.origin;
 
     let loadScript = function(url, callback){
 
@@ -95,6 +96,30 @@
     }
 
     // TODO: add preorder check
+    function isProductProrderedOrBackordered (virtualId, variantId) {
+        return new Promise(function(resolve, reject) {
+            jQueryBopis.ajax({
+                type: 'GET',
+                // need to update this endpoint to use correct endpoint for checking the product preorder availability
+                url: `${shopUrl}/admin/products/${virtualId}.json`,
+                crossDomain: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                success: function (data) {
+                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
+                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
+                    }
+                    else {
+                        resolve(false)
+                    }
+                },
+                error: function (err) {
+                    reject(err)
+                }
+            })
+        })
+    }
 
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
@@ -108,6 +133,8 @@
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
             const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
+
+            if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
             
             let $element = jQueryBopis("form[action='/cart/add']");
 
@@ -144,6 +171,7 @@
             handleAddToCartEvent();
 
         } else if(location.pathname.includes('cart')) {
+            // finding this property on cart page as some themes may display hidden properties on cart page
             jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
         }
     }
@@ -380,7 +408,8 @@
         // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
         jQueryBopis(document).trigger('prePickUp');
 
-        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
+        // made the property hidden by adding underscore before the property name
+        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[_pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
         let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}" type="hidden"/>`)
