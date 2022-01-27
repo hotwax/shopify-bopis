@@ -2,6 +2,7 @@
     let jQueryBopis;
     let $location;
     let backdrop;
+    let isProductSoldOut;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -107,8 +108,10 @@
                     'Content-Type': 'application/json'
                 },
                 success: function (data) {
+                    const variant = data.product.variants.find((variant) => variant.id == variantId);
+                    isProductSoldOut = variant.inventory_quantity <= 0 && variant.inventory_policy !== 'continue'
                     if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
-                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
+                        resolve(variant.inventory_policy === 'continue')
                     }
                     else {
                         resolve(false)
@@ -372,8 +375,14 @@
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
-                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
-                $pickUpButton.on("click", updateCart.bind(null, store));
+                let $pickUpButton = jQueryBopis(`<button class="btn btn--secondary-accent hc-store-pick-up-button">${isProductSoldOut ? 'Call Store' : 'Pick Up Here'}</button>`);
+
+                $pickUpButton.on("click", isProductSoldOut ? function () {
+                    // checking if storePhone is present then only adding the call functionality
+                    if (store.storePhone) {
+                        window.location = `tel:${store.storePhone}`
+                    }
+                } : updateCart.bind(null, store));
 
                 let $lineBreak = jQueryBopis('<hr/>')
 
