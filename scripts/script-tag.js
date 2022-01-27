@@ -96,7 +96,7 @@
     }
 
     // TODO: add preorder check
-    function isProductAvailableForBopis (virtualId, variantId) {
+    function isProductProrderedOrBackordered (virtualId, variantId) {
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
                 type: 'GET',
@@ -110,8 +110,9 @@
                     if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
                         resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
                     }
-                    else
+                    else {
                         resolve(false)
+                    }
                 },
                 error: function (err) {
                     reject(err)
@@ -133,7 +134,7 @@
             const cartForm = jQueryBopis("form[action='/cart/add']");
             const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
 
-            if (await isProductAvailableForBopis(meta.product.id, id)) return;
+            if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
             
             let $element = jQueryBopis("form[action='/cart/add']");
 
