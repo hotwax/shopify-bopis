@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true">
+    <ion-content>
       <ion-list class="ion-text-center">
         <img src="../assets/icon/icon.png" />
         <h1>{{ $t("Welcome to HC Bopis App") }}</h1>
