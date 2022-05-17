@@ -40,7 +40,7 @@
     let style = document.createElement("link");
     style.rel = 'stylesheet';
     style.type = 'text/css';
-    style.href = `${baseUrl}/api/shopify-tag.min.css`;
+    style.href = `${baseUrl}/api/shopify-bopis.min.css`;
 
     document.getElementsByTagName("head")[0].appendChild(style);
 
@@ -91,8 +91,8 @@
 
     function closeBopisModal () {
         jQueryBopis(".hc-bopis-modal")[0].style.display = "none";
-        jQueryBopis("body").css("overflow", "scroll");
         backdrop.remove();
+        jQueryBopis("body").css("overflow", "scroll");
     }
 
     // TODO: add preorder check
@@ -133,8 +133,6 @@
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
             const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
-
-            if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
             
             let $element = jQueryBopis("form[action='/cart/add']");
 
@@ -177,35 +175,19 @@
     }
 
     function getStoreInformation (queryString) {
-        let accessToken = "";
         // defined the distance to find the stores in this much radius area
-        let distance = 50;
         // viewSize is used to define the number of stores to fetch
-        let viewSize = 50;
+        const payload = {
+            viewSize: 50
+        }
 
-        const query = !($location) || queryString ? {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q.op": "AND",
-                    "qf": "postalCode city state country storeCode storeName",
-                    "defType" : "edismax"
-                },
-                "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE"
-            }
-        } : {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
-                    "pt": `${$location.latitude}, ${$location.longitude}`,
-                    "d": `${distance}`,
-                    "fq": "{!geofilt}",
-                    "sort": "geodist() asc",
-                    "sfield": "latlon"
-                }
-            }
+        if (queryString) {
+            payload["keyword"] = queryString
+        }
+
+        if ($location) {
+            payload["distance"] = 50
+            payload["point"] = `${$location.latitude}, ${$location.longitude}`
         }
 
         // applied a condition that if we have location permission then searching the stores for the current location
@@ -213,14 +195,10 @@
         // if we doesn't have location permission and pin, then will fetch all the available stores
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
-                type: 'POST',
-                url: `${baseUrl}/api/solr-query`,
+                type: 'GET',
+                url: `${baseUrl}/api/storeLookup`,
                 crossDomain: true,
-                data: JSON.stringify(query),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + accessToken
-                },
+                data: JSON.stringify(payload),
                 success: function (res) {
                     resolve(res)
                 },
