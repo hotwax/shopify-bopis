@@ -9,7 +9,7 @@
 
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
-    let baseUrl = 'https://odb-oms.hotwax.io';
+    let baseUrl = '';
 
     let loadScript = function(url, callback){
 
