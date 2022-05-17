@@ -119,7 +119,7 @@
         // if we doesn't have location permission and pin, then will fetch all the available stores
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
-                type: 'GET',
+                type: 'POST',
                 url: `${baseUrl}/api/storeLookup`,
                 crossDomain: true,
                 data: JSON.stringify(payload),
