@@ -1,7 +1,6 @@
 (function () {
     let jQueryBopis;
     let $location;
-    let backdrop;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -10,8 +9,7 @@
 
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
-    let baseUrl = '';
-    let shopUrl = window.origin;
+    let baseUrl = 'https://odb-oms.hotwax.io';
 
     let loadScript = function(url, callback){
 
@@ -74,61 +72,12 @@
         navigator.geolocation.getCurrentPosition(locationSuccess, locationError);
     }
 
-    // function will open the modal for the bopis
-    function openBopisModal (event) {
-        const eventTarget = jQueryBopis(event.target);
-
-        // to stop event bubbling when clicking on the Check Stores button
-        event.preventDefault();
-        event.stopImmediatePropagation();
-
-        backdrop = jQueryBopis('<div id="hc-backdrop"></div>');
-        jQueryBopis("body").append(backdrop);
-        // add overflow style to disable background scroll when modal is opened
-        jQueryBopis("body").css("overflow", "hidden");
-        jQueryBopis(".hc-bopis-modal")[0].style.display = "block";
-    }
-
-    function closeBopisModal () {
-        jQueryBopis(".hc-bopis-modal")[0].style.display = "none";
-        backdrop.remove();
-        jQueryBopis("body").css("overflow", "scroll");
-    }
-
-    // TODO: add preorder check
-    function isProductProrderedOrBackordered (virtualId, variantId) {
-        return new Promise(function(resolve, reject) {
-            jQueryBopis.ajax({
-                type: 'GET',
-                // need to update this endpoint to use correct endpoint for checking the product preorder availability
-                url: `${shopUrl}/admin/products/${virtualId}.json`,
-                crossDomain: true,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                success: function (data) {
-                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
-                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
-                    }
-                    else {
-                        resolve(false)
-                    }
-                },
-                error: function (err) {
-                    reject(err)
-                }
-            })
-        })
-    }
-
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
 
             await getCurrentLocation();
 
-            jQueryBopis(".hc-store-information").remove();
             jQueryBopis(".hc-open-bopis-modal").remove();
-            jQueryBopis(".hc-bopis-modal").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
@@ -136,37 +85,16 @@
             
             let $element = jQueryBopis("form[action='/cart/add']");
 
-            let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
-                <div class="hc-modal-content">
-                    <div class="hc-modal-header">
-                        <span class="hc-close"></span>
-                        <h1 class="hc-modal-title">Pick up today</h1>
-                    </div>
-                    <form id="hc-bopis-form">
-                        <input id="hc-bopis-store-pin" name="pin" placeholder="Enter zipcode"/>
-                        <button type="submit" class="btn hc-bopis-pick-up-button">Find Stores</button>
-                    </form>
-                    <div class="hc-store-information"></div>
-                    <p class="hc-store-not-found"></p>
-                </div>
-            </div>`);
-
             let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
-            
+
+            const response = await handleAddToCartEvent();
+            if (!response && !response.includes('error') && response.length <= 0) return;
+
+            // Assigning response[0] to store as in this case we are having a single store
+            const store = response[0];
+
             $element.append($btn);
-            jQueryBopis("body").append($pickUpModal);
-
-            $btn.on('click', openBopisModal);
-
-            jQueryBopis(".hc-close").on('click', closeBopisModal);
-            jQueryBopis(".hc-bopis-pick-up-button").on('click', handleAddToCartEvent);
-            jQueryBopis("body").on('click', function(event) {
-                if (event.target == jQueryBopis("#hc-bopis-modal")[0]) {
-                    closeBopisModal();
-                }
-            })
-
-            handleAddToCartEvent();
+            $btn.on('click', updateCart.bind(null, store));
 
         } else if(location.pathname.includes('cart')) {
             // finding this property on cart page as some themes may display hidden properties on cart page
@@ -174,15 +102,11 @@
         }
     }
 
-    function getStoreInformation (queryString) {
+    function getStoreInformation () {
         // defined the distance to find the stores in this much radius area
         // viewSize is used to define the number of stores to fetch
         const payload = {
-            viewSize: 50
-        }
-
-        if (queryString) {
-            payload["keyword"] = queryString
+            viewSize: 20
         }
 
         if ($location) {
@@ -255,17 +179,11 @@
             event.stopImmediatePropagation();
         }
 
-        const queryString = jQueryBopis("#hc-bopis-store-pin").val();
-        let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
+        let storeInformation = await getStoreInformation().then(data => data).catch(err => err);
         let result = '';
 
-        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
-        
-        // when using the demo instance we will use id as sku, and for dev instance we will use sku
-        // const sku = meta.product.variants.find(variant => variant.id == id).sku
-        const sku = id;
+        const sku = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
 
-        jQueryBopis('#hc-store-card').remove();
         if (event) eventTarget.prop("disabled", true);
 
         // checking if the number of stores is greater then 0 then creating a payload to check inventory
@@ -300,79 +218,10 @@
             }
         }
 
-        displayStoreInformation(result)
+        // displayStoreInformation(result)
         if (event) eventTarget.prop("disabled", false);
-    }
 
-    function getDay () {
-        let days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-        let date = new Date();
-        let dayName = days[date.getDay()];
-        return dayName;
-    }
-
-    function openData (regularHours) {
-        return regularHours.periods.find(period => period.openDay === getDay());
-    }
-
-    function tConvert (time) {
-        if (time) {
-            // Check correct time format and split into components
-            time = time.toString().match(/^([01]\d|2[0-3])(:)([0-5]\d)(:[0-5]\d)?$/) || [time];
-    
-            if (time.length > 1) { // If time format correct
-                time = time.slice(1); // Remove full string match value
-                time[5] = +time[0] < 12 ? 'am' : 'pm'; // Set AM/PM
-                time[0] = +time[0] % 12 || 12; // Adjust hours
-            }
-            return time.join(''); // return adjusted time or original string
-        }
-    }
-
-    // will check for the inventory for the product stock and if available then display the information on the UI
-    function displayStoreInformation(result) {
-
-        jQueryBopis('.hc-store-information').empty();
-        // TODO Handle it in a better way
-        // The content of error is not removed and appended to last error message
-        jQueryBopis('.hc-store-not-found').remove();
-        jQueryBopis('.hc-modal-content').append(jQueryBopis('<p class="hc-store-not-found"></p>'));
-        const hcModalContent = jQueryBopis('.hc-modal-content')
-    
-        //check for result count, result count contains the number of stores count in result
-        //TODO: find a better approach to handle the error secenario
-        if (result.length > 0 && !result.includes('error')) {
-            result.map(async (store) => {
-                let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
-                let $storeInformationCard = jQueryBopis(`
-                <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
-                    <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
-                </div>`);
-
-                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
-                $pickUpButton.on("click", updateCart.bind(null, store));
-
-                let $lineBreak = jQueryBopis('<hr/>')
-
-                $storeCard.append($storeInformationCard);
-                $storeCard.append($pickUpButton);
-                $storeCard.append($lineBreak);
-
-                jQueryBopis('.hc-store-information').append($storeCard);
-            })
-
-            //check whether the storeCard contains any children, if not then displaying error
-            if (!jQueryBopis('.hc-store-information').children().length) {
-                jQueryBopis('.hc-store-not-found').html('No stores found for this product');
-            }
-        } else {
-            jQueryBopis('.hc-store-not-found').append('No stores found for this product');
-        }
-
-        // hide all the h4 and p tags which are empty in the modal
-        hcModalContent.find('h4:empty').hide();
-        hcModalContent.find('p:empty').hide();
+        return result;
     }
     
     // will add product to cart with a custom property pickupstore
