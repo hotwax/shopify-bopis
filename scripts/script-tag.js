@@ -242,7 +242,7 @@
 
         const id = addToCartForm.serializeArray().find(ele => ele.name === "id").value
         let checkItemAvailablity = await checkItemAvailabilityForPreorderOrBackorder().then((product) => {
-            // checking what type of tag product contains (Pre-Order / Back-order) and on the basis of that will check for metafield
+            // checking what type of tag product contains (Pre-Order / Back-order)
             productType = product.tags.includes('Pre-Order') ? 'Pre-Order' : product.tags.includes('Back-Order') ? 'Back-Order' : ''
 
             // checking if continue selling is enabled for the variant or not
@@ -251,7 +251,7 @@
 
         if (jQueryBopis("input[class='hc_inventory']").val() > 0) checkItemAvailablity = false;
 
-        // if the product does not contains specific tag and continue selling is not enabled then not executing the script
+        // if the product does not contains specific tag and continue selling is not enabled then assigning the productType to empty
         if (!checkItemAvailablity) productType = '';
                 
         // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
