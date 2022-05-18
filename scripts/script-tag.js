@@ -72,6 +72,18 @@
         navigator.geolocation.getCurrentPosition(locationSuccess, locationError);
     }
 
+    // defined method to check whether product is preorder or backorder
+    function isItemAvailableForOrder () {
+        return new Promise(function(resolve, reject) {
+            jQueryBopis.getJSON(`${window.location.pathname}.js`, function (data){
+                if (data.tags.includes('Pre-Order') || data.tags.includes('Back-Order')) {
+                    resolve(data)
+                }
+                reject(false)
+            })
+        })
+    }
+
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
 
@@ -81,19 +93,14 @@
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
-            const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
-            
-            let $element = jQueryBopis("form[action='/cart/add']");
-
-            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
 
             const response = await handleAddToCartEvent();
-            if (!response && !response.includes('error') && response.length <= 0) return;
+            if (response.length <= 0 || response.includes('error')) return;
 
             // Assigning response[0] to store as in this case we are having a single store
             const store = response[0];
-
-            $element.append($btn);
+            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
+            cartForm.append($btn);
             $btn.on('click', updateCart.bind(null, store));
 
         } else if(location.pathname.includes('cart')) {
@@ -182,7 +189,8 @@
         let storeInformation = await getStoreInformation().then(data => data).catch(err => err);
         let result = '';
 
-        const sku = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
+        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
+        const sku = meta.product.variants.find(variant => variant.id == id).sku
 
         if (event) eventTarget.prop("disabled", true);
 
@@ -209,7 +217,7 @@
 
             // mapping the inventory result with the locations to filter those stores whose inventory
             // is present and the store code is present in the locations.
-            if (result.docs) {
+            if (result.docs && result.count > 0) {
                 result = storeInformation.response.docs.filter((location) => {
                     return result.docs.some((doc) => {
                         return doc.facilityId === location.storeCode && doc.atp > 0;
@@ -225,12 +233,27 @@
     }
     
     // will add product to cart with a custom property pickupstore
-    function updateCart(store, event) {
-
-        let addToCartForm = jQueryBopis("form[action='/cart/add']");
+    async function updateCart(store, event) {
 
         event.preventDefault();
         event.stopImmediatePropagation();
+
+        let addToCartForm = jQueryBopis("form[action='/cart/add']");
+        let productType = '';
+
+        const id = addToCartForm.serializeArray().find(ele => ele.name === "id").value
+        let checkItemAvailablity = await isItemAvailableForOrder().then((product) => {
+            // checking what type of tag product contains (Pre-Order / Back-order) and on the basis of that will check for metafield
+            productType = product.tags.includes('Pre-Order') ? 'Pre-Order' : product.tags.includes('Back-Order') ? 'Back-Order' : ''
+
+            // checking if continue selling is enabled for the variant or not
+            return product.variants.find((variant) => variant.id == id).available
+        }).catch(err => err);
+
+        if (jQueryBopis("input[class='hc_inventory']").val() > 0) checkItemAvailablity = false;
+
+        // if the product does not contains specific tag and continue selling is not enabled then not executing the script
+        if (!checkItemAvailablity) productType = '';
                 
         // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
         jQueryBopis(document).trigger('prePickUp');
@@ -241,6 +264,11 @@
 
         let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}" type="hidden"/>`)
         addToCartForm.append(facilityNameInput)
+
+        let productTypeInput = jQueryBopis(`<input id="hc-order-item" name="properties[Note]" value="${productType}" type="hidden"/>`)
+        if (productType) {
+            addToCartForm.append(productTypeInput)
+        }
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
         jQueryBopis.ajax({
@@ -262,6 +290,7 @@
 
         facilityIdInput.remove();
         facilityNameInput.remove();
+        productTypeInput.remove();
     }
     // TODO move it to intialise block
     // To check whether the url has changed or not, for making sure that the variant is changed.
