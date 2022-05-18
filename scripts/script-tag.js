@@ -73,7 +73,7 @@
     }
 
     // defined method to check whether product is preorder or backorder
-    function isItemAvailableForOrder () {
+    function checkItemAvailabilityForPreorderOrBackorder () {
         return new Promise(function(resolve, reject) {
             jQueryBopis.getJSON(`${window.location.pathname}.js`, function (data){
                 if (data.tags.includes('Pre-Order') || data.tags.includes('Back-Order')) {
@@ -242,7 +242,7 @@
         let productType = '';
 
         const id = addToCartForm.serializeArray().find(ele => ele.name === "id").value
-        let checkItemAvailablity = await isItemAvailableForOrder().then((product) => {
+        let checkItemAvailablity = await checkItemAvailabilityForPreorderOrBackorder().then((product) => {
             // checking what type of tag product contains (Pre-Order / Back-order) and on the basis of that will check for metafield
             productType = product.tags.includes('Pre-Order') ? 'Pre-Order' : product.tags.includes('Back-Order') ? 'Back-Order' : ''
 
