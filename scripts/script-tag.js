@@ -251,7 +251,7 @@
     }
     
     // will add product to cart with a custom property pickupstore
-    async function updateCart(store, event) {
+    function updateCart(store, event) {
 
         event.preventDefault();
         event.stopImmediatePropagation();
