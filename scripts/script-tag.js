@@ -226,7 +226,6 @@
             }
         }
 
-        // displayStoreInformation(result)
         if (event) eventTarget.prop("disabled", false);
 
         return result;
