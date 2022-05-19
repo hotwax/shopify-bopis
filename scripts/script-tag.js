@@ -87,7 +87,7 @@
 
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
-            let buttonLabel = 'Pick Up Today';
+            let buttonLabel = 'Pick Up';
             await getCurrentLocation();
 
             jQueryBopis(".hc-open-bopis-modal").remove();
@@ -119,7 +119,7 @@
             if (productType) buttonLabel = 'Pick Up when in stock'
 
             let $btn = jQueryBopis(`<button class="btn btn--secondary-accent hc-open-bopis-modal">${buttonLabel}</button>`);
-            let $btnString = jQueryBopis('<p id="hc_bopisStoreInformation">Pick Up from ODB Windsor Warehouse</p>');
+            let $btnString = jQueryBopis('<p id="hc_bopisStoreInformation">Pick up from ODB Windsor Warehouse</p>');
             cartForm.append($btn);
             cartForm.append($btnString)
             $btn.on('click', updateCart.bind(null, store));
