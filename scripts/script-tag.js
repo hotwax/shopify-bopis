@@ -119,7 +119,9 @@
             if (productType) buttonLabel = 'Pick Up when in stock'
 
             let $btn = jQueryBopis(`<button class="btn btn--secondary-accent hc-open-bopis-modal">${buttonLabel}</button>`);
+            let $btnString = jQueryBopis('<p id="hc_bopisStoreInformation">Pick Up from ODB Windsor Warehouse</p>');
             cartForm.append($btn);
+            cartForm.append($btnString)
             $btn.on('click', updateCart.bind(null, store));
 
         } else if(location.pathname.includes('cart')) {
