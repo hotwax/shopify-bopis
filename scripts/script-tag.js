@@ -2,6 +2,7 @@
     let jQueryBopis;
     let $location;
     let productType = '';
+    let isInventoryAvailable = false;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -77,7 +78,7 @@
     function checkItemAvailabilityForPreorderOrBackorder () {
         return new Promise(function(resolve, reject) {
             jQueryBopis.getJSON(`${window.location.pathname}.js`, function (data){
-                if (data.tags.includes('Pre-Order') || data.tags.includes('Back-Order')) {
+                if (data) {
                     resolve(data)
                 }
                 reject(false)
@@ -91,32 +92,32 @@
             await getCurrentLocation();
 
             jQueryBopis(".hc-open-bopis-modal").remove();
+            jQueryBopis("#hc_bopisStoreInformation").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
 
             const response = await handleAddToCartEvent();
-            if (response.length <= 0 || response.includes('error')) return;
 
             // Assigning response[0] to store as in this case we are having a single store
             const store = response[0];
 
-            const id = cartForm.serializeArray().find(ele => ele.name === "id").value
+            if (!isInventoryAvailable) {
+                const id = cartForm.serializeArray().find(ele => ele.name === "id").value
 
-            let checkItemAvailablity = await checkItemAvailabilityForPreorderOrBackorder().then((product) => {
-                // checking what type of tag product contains (Pre-Order / Back-order)
-                productType = product.tags.includes('Pre-Order') ? 'Pre-Order' : product.tags.includes('Back-Order') ? 'Back-Order' : ''
+                let checkItemAvailablity = await checkItemAvailabilityForPreorderOrBackorder().then((product) => {
+                    // checking what type of tag product contains (Pre-Order / Back-order)
+                    productType = product.tags.includes('Pre-Order') ? 'Pre-Order' : product.tags.includes('Back-Order') ? 'Back-Order' : ''
 
-                // checking if continue selling is enabled for the variant or not
-                return product.variants.find((variant) => variant.id == id).available
-            }).catch(err => err);
+                    // checking if continue selling is enabled for the variant or not
+                    return product.variants.find((variant) => variant.id == id).available
+                }).catch(err => err);
 
-            if (jQueryBopis("input[class='hc_inventory']").val() > 0) checkItemAvailablity = false;
+                // if the product does not contains specific tag and continue selling is not enabled then not showing the pick up button
+                if (!checkItemAvailablity) return;
+            }
 
-            // if the product does not contains specific tag and continue selling is not enabled then assigning the productType to empty
-            if (!checkItemAvailablity) productType = '';
-
-            if (productType) buttonLabel = 'Pick Up when in stock'
+            if (!productType) buttonLabel = 'Pick up when in stock'
 
             let $btn = jQueryBopis(`<button class="btn btn--secondary-accent hc-open-bopis-modal">${buttonLabel}</button>`);
             let $btnString = jQueryBopis('<p id="hc_bopisStoreInformation">Pick up from ODB Windsor Warehouse</p>');
@@ -245,6 +246,12 @@
                     })
                 })
             }
+
+            if (result[0]) {
+                isInventoryAvailable = true
+            }
+
+            return storeInformation.response.docs;
         }
 
         if (event) eventTarget.prop("disabled", false);
