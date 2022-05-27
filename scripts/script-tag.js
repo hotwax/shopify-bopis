@@ -93,11 +93,17 @@
 
             jQueryBopis(".hc-open-bopis-modal").remove();
             jQueryBopis("#hc_bopisStoreInformation").remove();
+            productType = ''
+            isInventoryAvailable = ''
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
 
             const response = await handleAddToCartEvent();
+
+            if (!response) {
+                return;
+            }
 
             // Assigning response[0] to store as in this case we are having a single store
             const store = response[0];
@@ -117,7 +123,7 @@
                 if (!checkItemAvailablity) return;
             }
 
-            if (!productType) buttonLabel = 'Pick up when in stock'
+            if (productType) buttonLabel = 'Pick up when in stock'
 
             let $btn = jQueryBopis(`<button class="btn btn--secondary-accent hc-open-bopis-modal">${buttonLabel}</button>`);
             let $btnString = jQueryBopis('<p id="hc_bopisStoreInformation">Pick up from ODB Windsor Warehouse</p>');
@@ -247,7 +253,7 @@
                 })
             }
 
-            if (result[0]) {
+            if (result && result[0]) {
                 isInventoryAvailable = true
             }
 
