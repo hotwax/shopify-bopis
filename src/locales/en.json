@@ -12,5 +12,11 @@
   "Username": "Username",
   "Password": "Password",
   "Login": "Login",
-  "OMS": "OMS"
+  "OMS": "OMS",
+  "Order Details": "Order Details",
+  "Order": "Order",
+  "SKU": "SKU",
+  "Pickup": "Pickup",
+  "in stock": "in stock",
+  "Save changes to order": "Save changes to order"
 }
