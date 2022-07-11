@@ -6,6 +6,7 @@ import RootState from './RootState'
 import shopModule from "./modules/shop"
 import createPersistedState from "vuex-persistedstate";
 import userModule from "./modules/user"
+import orderModule from "./modules/order"
 
 
 // TODO check how to register it from the components only
@@ -31,7 +32,8 @@ const store = createStore<RootState>({
     plugins: [ persistState ],
     modules: {
         'shop': shopModule,
-        'user': userModule
+        'user': userModule,
+        'order': orderModule
     }
 })
 

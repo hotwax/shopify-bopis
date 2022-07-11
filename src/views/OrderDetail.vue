@@ -8,26 +8,26 @@
     </ion-header>
     <ion-content>
       <div>
-        <h1 class="center-align">{{ $t("Order") }}</h1>
+        <h1 class="center-align">{{ $t("Order") }} {{ order.name }}</h1>
         <ion-card>
           <ion-list>
             <ion-item lines="none">
               <ion-label>
-                <h2>Customer name</h2>
+                <h2>{{order.customer?.first_name}} {{ order.customer?.last_name }}</h2>
                 <p>CSR name</p>
               </ion-label>
-              <ion-note slot="end">created date</ion-note>
+              <ion-note slot="end">{{ timeFromNow(order?.created_at) }}</ion-note>
             </ion-item>
           </ion-list>
         </ion-card>
 
-        <main>
+        <main v-for="item in order.line_items" :key="item.id">
           <ion-card>
             <ion-item lines="none">
               <ion-label>
-                <h2>Product name</h2>
-                <p>size/color</p>
-                <p class="ion-text-wrap">{{ $t("SKU") }}: SKU</p>
+                <h2>{{ item.title }}</h2>
+                <p>{{ item.variant_title }}</p>
+                <p class="ion-text-wrap">{{ $t("SKU") }}: {{ item.sku }}</p>
               </ion-label>
             </ion-item>
             <ion-item>
@@ -35,10 +35,22 @@
               <ion-label>{{ $t("Pickup") }}</ion-label>
               <ion-note slot="end">15 {{ $t("in stock") }}</ion-note>
             </ion-item>
+            <ion-radio-group :value="isSelected(item)" @ionChange="addProperty(item, $event)">
+              <ion-item class="border-top">
+                <ion-radio :disabled="checkPreOrderAvailability(item, 'PREORDER')" slot="start" value="Pre Order" />
+                <ion-label>{{ $t("Pre Order") }}</ion-label>
+                <ion-note slot="end" :color="getEstimatedDeliveryDate(item.sku, 'PREORDER') ? '' : 'warning'">{{ getEstimatedDeliveryDate(item.sku, "PREORDER") ? getEstimatedDeliveryDate(item.sku, "PREORDER") : $t("No shipping estimates") }}</ion-note>
+              </ion-item>
+              <ion-item class="border-top">
+                <ion-radio :disabled="checkPreOrderAvailability(item, 'BACKORDER')" slot="start" value="Back Order" />
+                <ion-label >{{ $t("Back Order") }}</ion-label>
+                <ion-note slot="end" :color="getEstimatedDeliveryDate(item.sku, 'BACKORDER') ? '' : 'warning'">{{ getEstimatedDeliveryDate(item.sku, "BACKORDER") ? getEstimatedDeliveryDate(item.sku, "BACKORDER") : $t("No shipping estimates") }}</ion-note>
+              </ion-item>
+            </ion-radio-group>
           </ion-card>
         </main>
         <div class="text-center center-align">
-          <ion-button>{{ $t("Save changes to order") }}</ion-button>
+          <ion-button @click="updateDraftOrder(order.line_items)">{{ $t("Save changes to order") }}</ion-button>
         </div>
       </div>
     </ion-content>
@@ -58,7 +70,9 @@ import {
   IonPage,
   IonTitle,
   IonToolbar,
-  IonBackButton
+  IonBackButton,
+  IonRadio,
+  IonRadioGroup
 } from "@ionic/vue";
 import {
   sendOutline,
@@ -67,6 +81,9 @@ import {
   mailOutline,
 } from "ionicons/icons";
 import { defineComponent } from 'vue';
+import { mapGetters, useStore } from 'vuex';
+import { useRouter } from 'vue-router';
+import { DateTime } from 'luxon';
 
 export default defineComponent({
   name: 'Home',
@@ -83,16 +100,55 @@ export default defineComponent({
     IonPage,
     IonTitle,
     IonToolbar,
-    IonBackButton
+    IonBackButton,
+    IonRadio,
+    IonRadioGroup
+  },
+  computed: {
+    ...mapGetters({
+      order: 'order/getDraftOrder',
+      orderId: 'order/getCurrentDraftOrderId',
+      configId: 'shop/getShopConfigId'
+    })
+  },
+  data(){
+    return {}
+  },
+  async mounted(){
+    if(this.$route.query.id){
+      this.store.dispatch('order/setCurrentDraftOrderId', this.$route.query.id);
+    }
+    await this.store.dispatch('order/getDraftOrder', {id: this.orderId, configId: this.configId });
+  },
+  methods: {
+    addProperty (item: any, event: any) {
+        item.properties.push({ name: 'Note', value: event.detail.value }, { name: 'PROMISE_DATE', value: "" })
+    },
+    updateDraftOrder (lineItems: any) {
+      const id = this.orderId;
+      this.store.dispatch('order/updateDraftOrder', {lineItems, id, configId: this.configId});
+    },
+    
+    timeFromNow (time: string) {
+      if (time) {
+        const timeDiff = DateTime.fromISO(time).diff(DateTime.local());
+        return DateTime.local().plus(timeDiff).toRelative();
+      }
+    },
   },
   setup() {
+    const store = useStore();
+    const router = useRouter();
+
     return {
       sendOutline,
       swapVerticalOutline,
       callOutline,
       mailOutline,
-    }
-  }
+      router,
+      store
+    };
+  },
 });
 </script>
 
@@ -108,3 +164,4 @@ ion-content > div {
   justify-content: center;
 }
 </style>
+Footer      
