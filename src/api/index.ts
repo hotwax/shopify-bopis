@@ -9,7 +9,7 @@ import {
 import router from '@/router'
 
 axios.interceptors.request.use((config: any) => {
-    const token = store.getters['shop/getUserToken'];
+    const token = store.getters['user/getUserToken'];
     if (token) {
         config.headers.Authorization =  'Bearer ' + token;
         config.headers['Content-Type'] = 'application/json';
@@ -68,8 +68,8 @@ const api = async (customConfig: any) => {
         data: customConfig.data,
         params: customConfig.params
     }
-    const baseURL = process.env.VUE_APP_BASE_URL;
-    if (baseURL) config.baseURL = baseURL;
+    let baseURL = store.getters['user/getInstanceUrl'];
+    baseURL = baseURL && baseURL.startsWith('http') ? baseURL : `https://${baseURL}.hotwax.io/api/`;    if (baseURL) config.baseURL = baseURL;
 
     if(customConfig.cache) config.adapter = axiosCache.adapter;
 
