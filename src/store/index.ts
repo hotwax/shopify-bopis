@@ -7,6 +7,7 @@ import shopModule from "./modules/shop"
 import createPersistedState from "vuex-persistedstate";
 import userModule from "./modules/user"
 import orderModule from "./modules/order"
+import stockModule from "./modules/stock"
 
 
 // TODO check how to register it from the components only
@@ -19,7 +20,7 @@ const state: any = {
 }
 
 const persistState = createPersistedState({
-    paths: ['user'],
+    paths: ['user', 'shop.configId', 'shop.store'],
     fetchBeforeUse: true
 })
 
@@ -33,7 +34,8 @@ const store = createStore<RootState>({
     modules: {
         'shop': shopModule,
         'user': userModule,
-        'order': orderModule
+        'order': orderModule,
+        'stock': stockModule
     }
 })
 

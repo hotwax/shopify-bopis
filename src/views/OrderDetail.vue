@@ -31,22 +31,10 @@
               </ion-label>
             </ion-item>
             <ion-item>
-              <ion-checkbox slot="start" />
+              <ion-checkbox slot="start" @ionChange="addProperty(item, $event)" />
               <ion-label>{{ $t("Pickup") }}</ion-label>
-              <ion-note slot="end">15 {{ $t("in stock") }}</ion-note>
+              <ion-note slot="end">{{ productStock(item.productSku) }} {{ $t("in stock") }}</ion-note>
             </ion-item>
-            <ion-radio-group :value="isSelected(item)" @ionChange="addProperty(item, $event)">
-              <ion-item class="border-top">
-                <ion-radio :disabled="checkPreOrderAvailability(item, 'PREORDER')" slot="start" value="Pre Order" />
-                <ion-label>{{ $t("Pre Order") }}</ion-label>
-                <ion-note slot="end" :color="getEstimatedDeliveryDate(item.sku, 'PREORDER') ? '' : 'warning'">{{ getEstimatedDeliveryDate(item.sku, "PREORDER") ? getEstimatedDeliveryDate(item.sku, "PREORDER") : $t("No shipping estimates") }}</ion-note>
-              </ion-item>
-              <ion-item class="border-top">
-                <ion-radio :disabled="checkPreOrderAvailability(item, 'BACKORDER')" slot="start" value="Back Order" />
-                <ion-label >{{ $t("Back Order") }}</ion-label>
-                <ion-note slot="end" :color="getEstimatedDeliveryDate(item.sku, 'BACKORDER') ? '' : 'warning'">{{ getEstimatedDeliveryDate(item.sku, "BACKORDER") ? getEstimatedDeliveryDate(item.sku, "BACKORDER") : $t("No shipping estimates") }}</ion-note>
-              </ion-item>
-            </ion-radio-group>
           </ion-card>
         </main>
         <div class="text-center center-align">
@@ -108,7 +96,9 @@ export default defineComponent({
     ...mapGetters({
       order: 'order/getDraftOrder',
       orderId: 'order/getCurrentDraftOrderId',
-      configId: 'shop/getShopConfigId'
+      configId: 'shop/getShopConfigId',
+      shopifyStore: 'shop/getStore',
+      productStock: 'stock/getProductStock'
     })
   },
   data(){
@@ -122,7 +112,10 @@ export default defineComponent({
   },
   methods: {
     addProperty (item: any, event: any) {
-        item.properties.push({ name: 'Note', value: event.detail.value }, { name: 'PROMISE_DATE', value: "" })
+      if(event.detail.checked){
+        const address = `${this.shopifyStore.storeName}, ${this.shopifyStore.address1}, ${this.shopifyStore.city}`
+        item.properties.push({ name: '_pickupstore', value: this.shopifyStore.storeCode }, { name: 'Pickup Store', value: address })
+      }
     },
     updateDraftOrder (lineItems: any) {
       const id = this.orderId;

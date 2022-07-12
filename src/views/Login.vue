@@ -74,7 +74,7 @@ export default defineComponent({
   methods: {
     login: function () {
       this.store.dispatch("user/setUserInstanceUrl", this.instanceUrl.trim())
-      
+      this.store.dispatch('shop/getStore');
       const { username, password } = this;
       this.store.dispatch("user/login", { username, password }).then( async (data: any) => {
         await this.store.dispatch('shop/getShopifyConfigId', this.$route.query.shop ? this.$route.query.shop : this.$route.redirectedFrom?.query.shop );
