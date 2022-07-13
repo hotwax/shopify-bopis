@@ -1,7 +1,7 @@
 import { StockService }  from '@/services/StockService'
 import { ActionTree } from 'vuex'
 import RootState from '@/store/RootState'
-import StockState from './stockState'
+import StockState from './StockState'
 import * as types from './mutation-types'
 import { hasError } from '@/utils'
 

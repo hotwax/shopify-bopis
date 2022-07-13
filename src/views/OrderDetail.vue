@@ -33,7 +33,7 @@
             <ion-item>
               <ion-checkbox slot="start" @ionChange="addProperty(item, $event)" />
               <ion-label>{{ $t("Pickup") }}</ion-label>
-              <ion-note slot="end">{{ productStock(item.productSku) }} {{ $t("in stock") }}</ion-note>
+              <ion-note slot="end">{{ getProductStock(item.productSku) }} {{ $t("in stock") }}</ion-note>
             </ion-item>
           </ion-card>
         </main>
@@ -98,7 +98,7 @@ export default defineComponent({
       orderId: 'order/getCurrentDraftOrderId',
       configId: 'shop/getShopConfigId',
       shopifyStore: 'shop/getStore',
-      productStock: 'stock/getProductStock'
+      getProductStock: 'stock/getProductStock'
     })
   },
   data(){

@@ -2,7 +2,7 @@ import actions from './actions'
 import getters from './getters'
 import mutations from './mutations'
 import { Module } from 'vuex'
-import StockState from './stockState'
+import StockState from './StockState'
 import RootState from '@/store/RootState'
 
 const stockModule: Module<StockState, RootState> = {

@@ -1,5 +1,5 @@
 import { MutationTree } from 'vuex'
-import StockState from './stockState'
+import StockState from './StockState'
 import * as types from './mutation-types'
 
 const mutations: MutationTree <StockState> = {

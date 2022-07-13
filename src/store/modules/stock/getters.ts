@@ -1,5 +1,5 @@
 import { GetterTree } from 'vuex'
-import StockState from './stockState'
+import StockState from './StockState'
 import RootState from '@/store/RootState'
 
 const getters: GetterTree <StockState, RootState> = {
