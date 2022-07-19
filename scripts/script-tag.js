@@ -113,7 +113,7 @@
 
                 let checkItemAvailablity = await checkItemAvailabilityForPreorderOrBackorder().then((product) => {
                     // checking what type of tag product contains (Pre-Order / Back-order)
-                    productType = product.tags.includes('Pre-Order') ? 'Pre-Order' : product.tags.includes('Back-Order') ? 'Back-Order' : ''
+                    productType = product.tags.includes('HC:Pre-Order') ? 'Pre-Order' : product.tags.includes('HC:Backorder') ? 'Back-Order' : ''
 
                     // checking if continue selling is enabled for the variant or not
                     return product.variants.find((variant) => variant.id == id).available
