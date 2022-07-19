@@ -11,7 +11,6 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = '';
-    let shopUrl = window.origin;
 
     let loadScript = function(url, callback){
 
@@ -40,7 +39,7 @@
     let style = document.createElement("link");
     style.rel = 'stylesheet';
     style.type = 'text/css';
-    style.href = `${baseUrl}/api/shopify-tag.min.css`;
+    style.href = `${baseUrl}/api/shopify-bopis.min.css`;
 
     document.getElementsByTagName("head")[0].appendChild(style);
 
@@ -95,30 +94,13 @@
         backdrop.remove();
     }
 
-    // TODO: add preorder check
-    function isProductProrderedOrBackordered (virtualId, variantId) {
-        return new Promise(function(resolve, reject) {
-            jQueryBopis.ajax({
-                type: 'GET',
-                // need to update this endpoint to use correct endpoint for checking the product preorder availability
-                url: `${shopUrl}/admin/products/${virtualId}.json`,
-                crossDomain: true,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                success: function (data) {
-                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
-                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
-                    }
-                    else {
-                        resolve(false)
-                    }
-                },
-                error: function (err) {
-                    reject(err)
-                }
-            })
-        })
+    async function isProductProrderedOrBackordered (variantId) {
+        await jQueryBopis.getJSON(`${window.location.pathname}.js`, function(product) {
+            if (product.tags.includes('HC:Pre-Order') || product.tags.includes('HC:Backorder')) {
+                return product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
+            }
+            return false;
+        });
     }
 
     async function initialiseBopis () {
@@ -132,11 +114,9 @@
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis("form[action='/cart/add']");
-            const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
+            const id = cartForm.serializeArray().find(ele => ele.name === "product_sku").value;
 
             if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
-            
-            let $element = jQueryBopis("form[action='/cart/add']");
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
@@ -155,7 +135,7 @@
 
             let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
             
-            $element.append($btn);
+            cartForm.append($btn);
             jQueryBopis("body").append($pickUpModal);
 
             $btn.on('click', openBopisModal);
@@ -177,35 +157,14 @@
     }
 
     function getStoreInformation (queryString) {
-        let accessToken = "";
-        // defined the distance to find the stores in this much radius area
-        let distance = 50;
-        // viewSize is used to define the number of stores to fetch
-        let viewSize = 50;
+        const payload = {
+            viewSize: 100,
+            keyword: queryString
+        }
 
-        const query = !($location) || queryString ? {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q.op": "AND",
-                    "qf": "postalCode city state country storeCode storeName",
-                    "defType" : "edismax"
-                },
-                "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE"
-            }
-        } : {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
-                    "pt": `${$location.latitude}, ${$location.longitude}`,
-                    "d": `${distance}`,
-                    "fq": "{!geofilt}",
-                    "sort": "geodist() asc",
-                    "sfield": "latlon"
-                }
-            }
+        if ($location) {
+            payload["distance"] = 50
+            payload["point"] = `${$location.latitude}, ${$location.longitude}`
         }
 
         // applied a condition that if we have location permission then searching the stores for the current location
@@ -214,13 +173,9 @@
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
                 type: 'POST',
-                url: `${baseUrl}/api/solr-query`,
+                url: `${baseUrl}/api/storeLookup`,
                 crossDomain: true,
-                data: JSON.stringify(query),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + accessToken
-                },
+                data: payload,
                 success: function (res) {
                     resolve(res)
                 },
@@ -281,7 +236,7 @@
         let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
-        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
+        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "product_sku").value
         
         // when using the demo instance we will use id as sku, and for dev instance we will use sku
         // const sku = meta.product.variants.find(variant => variant.id == id).sku
