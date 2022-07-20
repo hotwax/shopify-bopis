@@ -11,7 +11,6 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = '';
-    let shopUrl = window.origin;
 
     let loadScript = function(url, callback){
 
@@ -40,7 +39,7 @@
     let style = document.createElement("link");
     style.rel = 'stylesheet';
     style.type = 'text/css';
-    style.href = `${baseUrl}/api/shopify-tag.min.css`;
+    style.href = `${baseUrl}/api/shopify-bopis.min.css`;
 
     document.getElementsByTagName("head")[0].appendChild(style);
 
@@ -95,30 +94,13 @@
         backdrop.remove();
     }
 
-    // TODO: add preorder check
-    function isProductProrderedOrBackordered (virtualId, variantId) {
-        return new Promise(function(resolve, reject) {
-            jQueryBopis.ajax({
-                type: 'GET',
-                // need to update this endpoint to use correct endpoint for checking the product preorder availability
-                url: `${shopUrl}/admin/products/${virtualId}.json`,
-                crossDomain: true,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                success: function (data) {
-                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
-                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
-                    }
-                    else {
-                        resolve(false)
-                    }
-                },
-                error: function (err) {
-                    reject(err)
-                }
-            })
-        })
+    async function isProductProrderedOrBackordered (variantId) {
+        await jQueryBopis.getJSON(`${window.location.pathname}.js`, function(product) {
+            if (product.tags.includes('HC:Pre-Order') || product.tags.includes('HC:Backorder')) {
+                return product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
+            }
+            return false;
+        });
     }
 
     async function initialiseBopis () {
@@ -131,12 +113,12 @@
             jQueryBopis(".hc-bopis-modal").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
-            const cartForm = jQueryBopis("form[action='/cart/add']");
-            const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
+            const cartForm = jQueryBopis(".hc-product-form");
+            const id = cartForm.serializeArray().find(ele => ele.name === "hc-product-sku").value;
+
+            const bopisButton = jQueryBopis("#hc-bopis-button");
 
             if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
-            
-            let $element = jQueryBopis("form[action='/cart/add']");
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
@@ -153,12 +135,11 @@
                 </div>
             </div>`);
 
-            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
-            
-            $element.append($btn);
+            let $btn = jQueryBopis('<button class="btn btn--full hc-open-bopis-modal">Pick Up Today</button>');
+            bopisButton.append($btn);
             jQueryBopis("body").append($pickUpModal);
 
-            $btn.on('click', openBopisModal);
+            bopisButton.on('click', openBopisModal);
 
             jQueryBopis(".hc-close").on('click', closeBopisModal);
             jQueryBopis(".hc-bopis-pick-up-button").on('click', handleAddToCartEvent);
@@ -177,35 +158,14 @@
     }
 
     function getStoreInformation (queryString) {
-        let accessToken = "";
-        // defined the distance to find the stores in this much radius area
-        let distance = 50;
-        // viewSize is used to define the number of stores to fetch
-        let viewSize = 50;
+        const payload = {
+            viewSize: 100,
+            keyword: queryString
+        }
 
-        const query = !($location) || queryString ? {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q.op": "AND",
-                    "qf": "postalCode city state country storeCode storeName",
-                    "defType" : "edismax"
-                },
-                "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE"
-            }
-        } : {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
-                    "pt": `${$location.latitude}, ${$location.longitude}`,
-                    "d": `${distance}`,
-                    "fq": "{!geofilt}",
-                    "sort": "geodist() asc",
-                    "sfield": "latlon"
-                }
-            }
+        if ($location) {
+            payload["distance"] = 50
+            payload["point"] = `${$location.latitude}, ${$location.longitude}`
         }
 
         // applied a condition that if we have location permission then searching the stores for the current location
@@ -214,13 +174,9 @@
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
                 type: 'POST',
-                url: `${baseUrl}/api/solr-query`,
+                url: `${baseUrl}/api/storeLookup`,
                 crossDomain: true,
-                data: JSON.stringify(query),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + accessToken
-                },
+                data: payload,
                 success: function (res) {
                     resolve(res)
                 },
@@ -240,6 +196,7 @@
         payload[0].facilityId.map((facility) => {
             paramFacilityId += `&facilityId=${facility}`
         })
+        const viewSize = payload[0].facilityId.length
 
         let resp;
 
@@ -248,7 +205,7 @@
             resp = await new Promise(function(resolve, reject) {
                 jQueryBopis.ajax({
                     type: 'GET',
-                    url: `${baseUrl}/api/checkInventory?sku=${payload[0].sku}${paramFacilityId}`,
+                    url: `${baseUrl}/api/checkInventory?sku=${payload[0].sku}${paramFacilityId}&viewSize=${viewSize}`,
                     crossDomain: true,
                     headers: {
                         'Content-Type': 'application/json'
@@ -281,7 +238,7 @@
         let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
-        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
+        const id = jQueryBopis(".hc-product-form").serializeArray().find(ele => ele.name === "hc-product-sku").value
         
         // when using the demo instance we will use id as sku, and for dev instance we will use sku
         // const sku = meta.product.variants.find(variant => variant.id == id).sku
@@ -368,7 +325,7 @@
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
                 <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
+                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''} ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
@@ -400,7 +357,7 @@
     // will add product to cart with a custom property pickupstore
     function updateCart(store, event) {
 
-        let addToCartForm = jQueryBopis("form[action='/cart/add']");
+        let addToCartForm = jQueryBopis(".hc-product-form");
 
         event.preventDefault();
         event.stopImmediatePropagation();
