@@ -113,8 +113,10 @@
             jQueryBopis(".hc-bopis-modal").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
-            const cartForm = jQueryBopis("form[action='/cart/add']");
-            const id = cartForm.serializeArray().find(ele => ele.name === "product_sku").value;
+            const cartForm = jQueryBopis(".hc-product-form");
+            const id = cartForm.serializeArray().find(ele => ele.name === "hc-product-sku").value;
+
+            const bopisButton = jQueryBopis("#hc-bopis-button");
 
             if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
 
@@ -133,12 +135,11 @@
                 </div>
             </div>`);
 
-            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
-            
-            cartForm.append($btn);
+            let $btn = jQueryBopis('<button class="btn btn--full hc-open-bopis-modal">Pick Up Today</button>');
+            bopisButton.append($btn);
             jQueryBopis("body").append($pickUpModal);
 
-            $btn.on('click', openBopisModal);
+            bopisButton.on('click', openBopisModal);
 
             jQueryBopis(".hc-close").on('click', closeBopisModal);
             jQueryBopis(".hc-bopis-pick-up-button").on('click', handleAddToCartEvent);
@@ -195,6 +196,7 @@
         payload[0].facilityId.map((facility) => {
             paramFacilityId += `&facilityId=${facility}`
         })
+        const viewSize = payload[0].facilityId.length
 
         let resp;
 
@@ -203,7 +205,7 @@
             resp = await new Promise(function(resolve, reject) {
                 jQueryBopis.ajax({
                     type: 'GET',
-                    url: `${baseUrl}/api/checkInventory?sku=${payload[0].sku}${paramFacilityId}`,
+                    url: `${baseUrl}/api/checkInventory?sku=${payload[0].sku}${paramFacilityId}&viewSize=${viewSize}`,
                     crossDomain: true,
                     headers: {
                         'Content-Type': 'application/json'
@@ -236,7 +238,7 @@
         let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
-        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "product_sku").value
+        const id = jQueryBopis(".hc-product-form").serializeArray().find(ele => ele.name === "hc-product-sku").value
         
         // when using the demo instance we will use id as sku, and for dev instance we will use sku
         // const sku = meta.product.variants.find(variant => variant.id == id).sku
@@ -323,7 +325,7 @@
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
                 <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
+                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''} ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
@@ -355,7 +357,7 @@
     // will add product to cart with a custom property pickupstore
     function updateCart(store, event) {
 
-        let addToCartForm = jQueryBopis("form[action='/cart/add']");
+        let addToCartForm = jQueryBopis(".hc-product-form");
 
         event.preventDefault();
         event.stopImmediatePropagation();
