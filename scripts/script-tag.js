@@ -239,6 +239,11 @@
                 return storeCode;
             })
 
+            // checking for product inventory on shopify before making api call to checkInventory
+            if (jQueryBopis("input[class='hc_inventory']").val() <= 0) {
+                return storeInformation.response.docs;
+            }
+
             // passing the facilityId as an array in the payload
             let payload = [{"sku" : sku, "facilityId": storeCodes}];
             result = await checkInventory(payload)
