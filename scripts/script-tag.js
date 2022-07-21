@@ -156,7 +156,7 @@
                 </div>
             </div>`);
 
-            let $btn = jQueryBopis('<button class="btn btn--full hc-open-bopis-modal">Pick Up Today</button>');
+            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
             bopisButton.append($btn);
             jQueryBopis("body").append($pickUpModal);
 
