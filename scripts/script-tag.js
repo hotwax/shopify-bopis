@@ -2,6 +2,7 @@
     let jQueryBopis;
     let $location;
     let backdrop;
+    let currentProduct;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -94,18 +95,34 @@
         backdrop.remove();
     }
 
-    async function isProductProrderedOrBackordered (variantId) {
+    async function getCurrentProduct() {
         await jQueryBopis.getJSON(`${window.location.pathname}.js`, function(product) {
-            if (product.tags.includes('HC:Pre-Order') || product.tags.includes('HC:Backorder')) {
-                return product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
-            }
-            return false;
+            currentProduct = product;
         });
+    }
+
+    async function isProductAvailable(variantId) {
+        const hasInventoryOnShopify = jQueryBopis("input[class='hc_inventory']").val() > 0
+        if (currentProduct) {
+            if (hasInventoryOnShopify) {
+                return true;
+            } else {
+                return currentProduct.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
+            }
+        }
+        return false;
+    }
+
+    async function isProductProrderedOrBackordered (variantId) {
+        if (currentProduct.tags.includes('HC:Pre-Order') || currentProduct.tags.includes('HC:Backorder')) {
+            return currentProduct.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
+        }
+        return false;
     }
 
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
-
+            await getCurrentProduct(); // fetch the information for the current product
             await getCurrentLocation();
 
             jQueryBopis(".hc-store-information").remove();
@@ -115,6 +132,9 @@
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis(".hc-product-form");
             const id = cartForm.serializeArray().find(ele => ele.name === "hc-product-sku").value;
+
+            // Do not enable BOPIS when the current product is not available
+            if(!(await isProductAvailable(id))) return;
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
 
@@ -325,7 +345,7 @@
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
                 <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''} ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
+                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? `, ${store.address1}` : ''}</p><p>${store.city ? `, ${store.city}` : ''} ${store.stateCode ? `, ${store.stateCode}` : ''} ${store.postalCode ? `, ${store.postalCode}` : ''} ${store.countryCode ? `, ${store.countryCode}` : ''}</p></div>
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
@@ -369,7 +389,7 @@
         let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[_pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
-        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}" type="hidden"/>`)
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''} ${store.address1 ? `, ${store.address1}` : ''} ${store.city ? `, ${store.city}` : ''}" type="hidden"/>`)
         addToCartForm.append(facilityNameInput)
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
