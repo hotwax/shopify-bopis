@@ -126,7 +126,6 @@
             await getCurrentLocation();
 
             jQueryBopis(".hc-store-information").remove();
-            jQueryBopis(".hc-open-bopis-modal").remove();
             jQueryBopis(".hc-bopis-modal").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
@@ -137,6 +136,7 @@
             if(!(await isProductAvailable(sku))) return;
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
+            const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
 
             // check if the product is Pre-order or backorder and having continue selling enabled and if yes, then do not enable bopis
             if (await isProductProrderedOrBackordered(meta.product.id, sku).catch(err => false)) return;
@@ -156,8 +156,12 @@
                 </div>
             </div>`);
 
-            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
-            bopisButton.append($btn);
+            // check if the element with id hc-bopis-button has button element in it then don't add button
+            if (bopisButtonEnabled.length == 0) {
+                let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
+                bopisButton.append($btn);
+            }
+
             jQueryBopis("body").append($pickUpModal);
 
             bopisButton.on('click', openBopisModal);
