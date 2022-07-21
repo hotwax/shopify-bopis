@@ -101,21 +101,21 @@
         });
     }
 
-    async function isProductAvailable(variantId) {
+    async function isProductAvailable(variantSku) {
         const hasInventoryOnShopify = jQueryBopis("input[class='hc_inventory']").val() > 0
         if (currentProduct) {
             if (hasInventoryOnShopify) {
                 return true;
             } else {
-                return currentProduct.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
+                return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
             }
         }
         return false;
     }
 
-    async function isProductProrderedOrBackordered (variantId) {
+    async function isProductProrderedOrBackordered (variantSku) {
         if (currentProduct.tags.includes('HC:Pre-Order') || currentProduct.tags.includes('HC:Backorder')) {
-            return currentProduct.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue'
+            return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
         }
         return false;
     }
@@ -131,15 +131,15 @@
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis(".hc-product-form");
-            const id = cartForm.serializeArray().find(ele => ele.name === "hc-product-sku").value;
+            const sku = cartForm.serializeArray().find(ele => ele.name === "hc-product-sku").value;
 
             // Do not enable BOPIS when the current product is not available
-            if(!(await isProductAvailable(id))) return;
+            if(!(await isProductAvailable(sku))) return;
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
 
             // check if the product is Pre-order or backorder and having continue selling enabled and if yes, then do not enable bopis
-            if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
+            if (await isProductProrderedOrBackordered(meta.product.id, sku).catch(err => false)) return;
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
@@ -259,11 +259,7 @@
         let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
-        const id = jQueryBopis(".hc-product-form").serializeArray().find(ele => ele.name === "hc-product-sku").value
-        
-        // when using the demo instance we will use id as sku, and for dev instance we will use sku
-        // const sku = meta.product.variants.find(variant => variant.id == id).sku
-        const sku = id;
+        const sku = jQueryBopis(".hc-product-form").serializeArray().find(ele => ele.name === "hc-product-sku").value
 
         jQueryBopis('#hc-store-card').remove();
         if (event) eventTarget.prop("disabled", true);
