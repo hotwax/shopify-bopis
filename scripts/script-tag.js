@@ -138,6 +138,7 @@
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
 
+            // check if the product is Pre-order or backorder and having continue selling enabled and if yes, then do not enable bopis
             if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
