@@ -3,8 +3,6 @@
     let $location;
     let backdrop;
     let currentProduct;
-    let storeSelector;
-    let stores;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -49,37 +47,17 @@
     if ((typeof jQuery === 'undefined') || (parseFloat(jQuery.fn['jquery']) < 1.7)) {
         loadScript('//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js', function(){
             jQueryBopis = jQuery.noConflict(true);
-            jQueryBopis(document).ready(async function() {
-                storeSelector = jQueryBopis('#hc-stores');
-                await displayStoresToSelect();
+            jQueryBopis(document).ready(function() {
                 initialiseBopis();
             });
 
         });
     } else {
         jQueryBopis = jQuery;
-        jQuery(document).ready(async function() {
-            storeSelector = jQueryBopis('#hc-stores');
-            await displayStoresToSelect();
+        jQuery(document).ready(function() {
             initialiseBopis();
         });
     }
-
-    async function displayStoresToSelect() {
-      stores = await getStoreInformation().then(data => data).catch(err => err);
-
-      if (stores && stores.response?.numFound > 0) {
-        stores.response.docs.map((store) => {
-          const option = `<option value="${store.storeCode}">${store.storeName}</option>`
-          storeSelector.append(option);
-        })
-      }
-
-      const currentStore = localStorage.getItem('hcCurrentStore');
-      currentStore && storeSelector.val(currentStore);
-
-      storeSelector.on('change', saveUserStorePreference);
-    };
 
     // function to get co-ordinates of the user after successfully getting the location
     function locationSuccess (pos) {
@@ -125,8 +103,12 @@
 
     async function isProductAvailable(variantSku) {
         const hasInventoryOnShopify = jQueryBopis("input[class='hc_inventory']").val() > 0
-        if (currentProduct && hasInventoryOnShopify) {
-            return true;
+        if (currentProduct) {
+            if (hasInventoryOnShopify) {
+                return true;
+            } else {
+                return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
+            }
         }
         return false;
     }
@@ -136,10 +118,6 @@
             return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
         }
         return false;
-    }
-
-    function saveUserStorePreference() {
-      localStorage.setItem('hcCurrentStore', storeSelector.val());
     }
 
     async function initialiseBopis () {
@@ -282,7 +260,7 @@
         }
 
         const queryString = jQueryBopis("#hc-bopis-store-pin").val();
-        let storeInformation = queryString || $location ? await getStoreInformation(queryString).then(data => data).catch(err => err) : stores;
+        let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
         const sku = jQueryBopis("input[class='hc_product_sku']").val();
