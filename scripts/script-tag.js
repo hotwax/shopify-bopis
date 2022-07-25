@@ -75,10 +75,10 @@
         })
       }
 
-      const currentStore = localStorage.getItem('hcCurrentStore');
+      const currentStore = getUserStorePreference();
       currentStore && storeSelector.val(currentStore);
 
-      storeSelector.on('change', saveUserStorePreference);
+      storeSelector.on('change', setUserStorePreference());
     };
 
     // function to get co-ordinates of the user after successfully getting the location
@@ -131,14 +131,25 @@
         return false;
     }
 
-    function updateCurrentStoreInformation() {
-      const currentStore = stores?.response?.docs?.find((store) => store.storeCode == localStorage.getItem('hcCurrentStore')) ?? 'No Store selected';
-      jQueryBopis('#hc-current-store') && jQueryBopis('#hc-current-store').text(currentStore.storeName);
+    function getUserStorePreference() {
+        return localStorage.getItem('hcCurrentStore');
     }
 
-    function saveUserStorePreference() {
-      localStorage.setItem('hcCurrentStore', storeSelector.val());
-      updateCurrentStoreInformation();
+    function updateCurrentStoreInformation() {
+      const currentStoreCode = getUserStorePreference();
+      const currentStore = stores?.response?.docs?.find((store) => store.storeCode == currentStoreCode) ?? 'No Store selected';
+      jQueryBopis('#hc-current-store') && jQueryBopis('#hc-current-store').text(currentStore?.storeName);
+      storeSelector.val(currentStore ? currentStoreCode : '');
+    }
+
+    function setUserStorePreference() {
+        localStorage.setItem('hcCurrentStore', storeSelector.val());
+        updateCurrentStoreInformation();
+    }
+
+    function setUserStorePreferenceFromPDP(storeCode, event) {
+        localStorage.setItem('hcCurrentStore', storeCode);
+        updateCurrentStoreInformation();
     }
 
     async function initialiseBopis () {
@@ -372,10 +383,14 @@
                 let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
                 $pickUpButton.on("click", updateCart.bind(null, store));
 
+                let $myStoreButton = jQueryBopis('<button class="btn btn--secondary-accent hc-home-store-button">Set as a home store</button>');
+                $myStoreButton.on("click", setUserStorePreferenceFromPDP.bind(null, store.storeCode));
+
                 let $lineBreak = jQueryBopis('<hr/>')
 
                 $storeCard.append($storeInformationCard);
                 $storeCard.append($pickUpButton);
+                $storeCard.append($myStoreButton);
                 $storeCard.append($lineBreak);
 
                 jQueryBopis('.hc-store-information').append($storeCard);
