@@ -131,8 +131,14 @@
         return false;
     }
 
+    function updateCurrentStoreInformation() {
+      const currentStore = stores?.response?.docs?.find((store) => store.storeCode == localStorage.getItem('hcCurrentStore')) ?? 'No Store selected';
+      jQueryBopis('#hc-current-store') && jQueryBopis('#hc-current-store').text(currentStore.storeName);
+    }
+
     function saveUserStorePreference() {
       localStorage.setItem('hcCurrentStore', storeSelector.val());
+      updateCurrentStoreInformation();
     }
 
     async function initialiseBopis () {
@@ -174,9 +180,10 @@
                 bopisButton.append($btn);
             }
 
+            updateCurrentStoreInformation();
             jQueryBopis("body").append($pickUpModal);
 
-            bopisButton.on('click', openBopisModal);
+            bopisButtonEnabled.on('click', openBopisModal);
 
             jQueryBopis(".hc-close").on('click', closeBopisModal);
             jQueryBopis(".hc-bopis-pick-up-button").on('click', handleAddToCartEvent);
