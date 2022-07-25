@@ -5,6 +5,7 @@
     let currentProduct;
     let storeSelector;
     let stores;
+    let storesWithInventory;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -78,7 +79,7 @@
       const currentStore = getUserStorePreference();
       currentStore && storeSelector.val(currentStore);
 
-      storeSelector.on('change', setUserStorePreference());
+      storeSelector.on('change', setUserStorePreference.bind(null, storeSelector.val()));
     };
 
     // function to get co-ordinates of the user after successfully getting the location
@@ -140,9 +141,18 @@
       const currentStore = stores?.response?.docs?.find((store) => store.storeCode == currentStoreCode) ?? 'No Store selected';
       jQueryBopis('#hc-current-store') && jQueryBopis('#hc-current-store').text(currentStore?.storeName);
       storeSelector.val(currentStore ? currentStoreCode : '');
+      if (storesWithInventory) {
+          const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
+          const hasInventory = storesWithInventory.some((store) => store.facilityId === currentStoreCode && store.atp > 0);
+          if (hasInventory) {
+              bopisButtonEnabled.prop('disabled', false);
+          } else {
+              bopisButtonEnabled.prop('disabled', true);
+          }
+      }
     }
 
-    function setUserStorePreference() {
+    function setUserStorePreference(storeCode, event) {
         localStorage.setItem('hcCurrentStore', storeSelector.val());
         updateCurrentStoreInformation();
     }
@@ -150,6 +160,7 @@
     function setUserStorePreferenceFromPDP(storeCode, event) {
         localStorage.setItem('hcCurrentStore', storeCode);
         updateCurrentStoreInformation();
+        closeBopisModal();
     }
 
     async function initialiseBopis () {
@@ -194,7 +205,9 @@
             updateCurrentStoreInformation();
             jQueryBopis("body").append($pickUpModal);
 
-            bopisButtonEnabled.on('click', openBopisModal);
+            const hcStoreChangeButton = jQueryBopis('#hc-store-change-button');
+            hcStoreChangeButton.on('click', openBopisModal);
+            bopisButtonEnabled.on('click', updateCartWithCurrentStore);
 
             jQueryBopis(".hc-close").on('click', closeBopisModal);
             jQueryBopis(".hc-bopis-pick-up-button").on('click', handleAddToCartEvent);
@@ -210,6 +223,48 @@
             // finding this property on cart page as some themes may display hidden properties on cart page
             jQueryBopis("[data-cart-item-property-name]:contains('pickupstore')").closest('li').hide();
         }
+    }
+
+    function updateCartWithCurrentStore() {
+
+        const currentStoreCode = getUserStorePreference();
+        const store = stores?.response?.docs?.find((store) => store.storeCode == currentStoreCode);
+
+        let addToCartForm = jQueryBopis(".hc-product-form");
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
+        jQueryBopis(document).trigger('prePickUp');
+
+        // made the property hidden by adding underscore before the property name
+        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[_pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
+        addToCartForm.append(facilityIdInput)
+
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''} ${store.address1 ? `, ${store.address1}` : ''} ${store.city ? `, ${store.city}` : ''}" type="hidden"/>`)
+        addToCartForm.append(facilityNameInput)
+
+        // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
+        jQueryBopis.ajax({
+            type: "POST",
+            url: '/cart/add.js',
+            data: addToCartForm.serialize(),
+            dataType: 'JSON',
+            success: function () {
+
+                // let merchant define the behavior after the item is successfully added as a pick up item, merchant can define an event listener for this event
+                jQueryBopis(document).trigger('postPickUp');
+
+                // redirecting the user to the cart page after the product gets added to the cart
+                if (bopisCustomConfig.enableCartRedirection) {
+                    location.replace('/cart');
+                }
+            }
+        })
+
+        facilityIdInput.remove();
+        facilityNameInput.remove();
     }
 
     function getStoreInformation (queryString) {
@@ -322,11 +377,14 @@
             // mapping the inventory result with the locations to filter those stores whose inventory
             // is present and the store code is present in the locations.
             if (result.docs) {
+                storesWithInventory = result.docs;
                 result = storeInformation.response.docs.filter((location) => {
                     return result.docs.some((doc) => {
                         return doc.facilityId === location.storeCode && doc.atp > 0;
                     })
                 })
+
+                updateCurrentStoreInformation();
             }
         }
 
@@ -386,11 +444,14 @@
                 let $myStoreButton = jQueryBopis('<button class="btn btn--secondary-accent hc-home-store-button">Set as a home store</button>');
                 $myStoreButton.on("click", setUserStorePreferenceFromPDP.bind(null, store.storeCode));
 
+                let $buttonWrapper = jQueryBopis('<div class="hc-button-wrapper"></div>');
+                $buttonWrapper.append($pickUpButton);
+                $buttonWrapper.append($myStoreButton);
+
                 let $lineBreak = jQueryBopis('<hr/>')
 
                 $storeCard.append($storeInformationCard);
-                $storeCard.append($pickUpButton);
-                $storeCard.append($myStoreButton);
+                $storeCard.append($buttonWrapper);
                 $storeCard.append($lineBreak);
 
                 jQueryBopis('.hc-store-information').append($storeCard);
