@@ -438,10 +438,10 @@
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
-                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
+                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-button hc-store-pick-up-button">Pick Up Here</button>');
                 $pickUpButton.on("click", updateCart.bind(null, store));
 
-                let $myStoreButton = jQueryBopis('<button class="btn btn--secondary-accent hc-home-store-button">Set as a home store</button>');
+                let $myStoreButton = jQueryBopis('<button class="btn btn--secondary-accent hc-button hc-home-store-button">Set as a home store</button>');
                 $myStoreButton.on("click", setUserStorePreferenceFromPDP.bind(null, store.storeCode));
 
                 let $buttonWrapper = jQueryBopis('<div class="hc-button-wrapper"></div>');
