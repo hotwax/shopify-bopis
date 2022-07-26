@@ -2,6 +2,10 @@
     let jQueryBopis;
     let $location;
     let backdrop;
+    let currentProduct;
+    let storeSelector;
+    let stores;
+    let storesWithInventory;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -11,7 +15,6 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = '';
-    let shopUrl = window.origin;
 
     let loadScript = function(url, callback){
 
@@ -40,24 +43,44 @@
     let style = document.createElement("link");
     style.rel = 'stylesheet';
     style.type = 'text/css';
-    style.href = `${baseUrl}/api/shopify-tag.min.css`;
+    style.href = `${baseUrl}/api/shopify-bopis.min.css`;
 
     document.getElementsByTagName("head")[0].appendChild(style);
 
     if ((typeof jQuery === 'undefined') || (parseFloat(jQuery.fn['jquery']) < 1.7)) {
         loadScript('//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js', function(){
             jQueryBopis = jQuery.noConflict(true);
-            jQueryBopis(document).ready(function() {
+            jQueryBopis(document).ready(async function() {
+                storeSelector = jQueryBopis('#hc-stores');
+                await displayStoresToSelect();
                 initialiseBopis();
             });
 
         });
     } else {
         jQueryBopis = jQuery;
-        jQuery(document).ready(function() {
+        jQuery(document).ready(async function() {
+            storeSelector = jQueryBopis('#hc-stores');
+            await displayStoresToSelect();
             initialiseBopis();
         });
     }
+
+    async function displayStoresToSelect() {
+      stores = await getStoreInformation().then(data => data).catch(err => err);
+
+      if (stores && stores.response?.numFound > 0) {
+        stores.response.docs.map((store) => {
+          const option = `<option value="${store.storeCode}">${store.storeName}</option>`
+          storeSelector.append(option);
+        })
+      }
+
+      const currentStore = getUserStorePreference();
+      currentStore && storeSelector.val(currentStore);
+
+      storeSelector.on('change', setUserStorePreference.bind(null, storeSelector.val()));
+    };
 
     // function to get co-ordinates of the user after successfully getting the location
     function locationSuccess (pos) {
@@ -95,48 +118,71 @@
         backdrop.remove();
     }
 
-    // TODO: add preorder check
-    function isProductProrderedOrBackordered (virtualId, variantId) {
-        return new Promise(function(resolve, reject) {
-            jQueryBopis.ajax({
-                type: 'GET',
-                // need to update this endpoint to use correct endpoint for checking the product preorder availability
-                url: `${shopUrl}/admin/products/${virtualId}.json`,
-                crossDomain: true,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                success: function (data) {
-                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
-                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
-                    }
-                    else {
-                        resolve(false)
-                    }
-                },
-                error: function (err) {
-                    reject(err)
-                }
-            })
-        })
+    async function getCurrentProduct() {
+        await jQueryBopis.getJSON(`${window.location.pathname}.js`, function(product) {
+            currentProduct = product;
+        });
+    }
+
+    async function isProductAvailable(variantSku) {
+        const hasInventoryOnShopify = jQueryBopis("input[class='hc_inventory']").val() > 0
+        if (currentProduct && hasInventoryOnShopify) {
+            return true;
+        }
+        return false;
+    }
+
+    function getUserStorePreference() {
+        return localStorage.getItem('hcCurrentStore');
+    }
+
+    function updateCurrentStoreInformation() {
+      const currentStoreCode = getUserStorePreference();
+      const currentStore = stores?.response?.docs?.find((store) => store.storeCode == currentStoreCode) ?? 'No Store selected';
+      jQueryBopis('#hc-current-store') && jQueryBopis('#hc-current-store').text(currentStore?.storeName);
+      storeSelector.val(currentStore ? currentStoreCode : '');
+      if (storesWithInventory) {
+          const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
+          const hasInventory = storesWithInventory.some((store) => store.facilityId === currentStoreCode && store.atp > 0);
+          if (hasInventory) {
+              bopisButtonEnabled.prop('disabled', false);
+          } else {
+              bopisButtonEnabled.prop('disabled', true);
+          }
+      }
+    }
+
+    function setUserStorePreference(storeCode, event) {
+        localStorage.setItem('hcCurrentStore', storeSelector.val());
+        updateCurrentStoreInformation();
+    }
+
+    function setUserStorePreferenceFromPDP(storeCode, event) {
+        localStorage.setItem('hcCurrentStore', storeCode);
+        updateCurrentStoreInformation();
+        closeBopisModal();
     }
 
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
-
+            await getCurrentProduct(); // fetch the information for the current product
             await getCurrentLocation();
 
             jQueryBopis(".hc-store-information").remove();
-            jQueryBopis(".hc-open-bopis-modal").remove();
             jQueryBopis(".hc-bopis-modal").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
-            const cartForm = jQueryBopis("form[action='/cart/add']");
-            const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
+            const cartForm = jQueryBopis(".hc-product-form");
+            const sku = jQueryBopis(".hc_product_sku").text() ? jQueryBopis(".hc_product_sku").text() : jQueryBopis(".hc_product_sku").val();
 
-            if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
-            
-            let $element = jQueryBopis("form[action='/cart/add']");
+            const bopisButton = jQueryBopis("#hc-bopis-button");
+            const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
+
+            // Do not enable BOPIS when the current product is not available
+            if(!(await isProductAvailable(sku))) {
+              bopisButton.remove();
+              return;
+            }
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
@@ -153,12 +199,18 @@
                 </div>
             </div>`);
 
-            let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
-            
-            $element.append($btn);
+            // check if the element with id hc-bopis-button has button element in it then don't add button
+            if (bopisButtonEnabled.length == 0) {
+                let $btn = jQueryBopis('<button class="btn btn--secondary-accent hc-open-bopis-modal">Pick Up Today</button>');
+                bopisButton.append($btn);
+            }
+
+            updateCurrentStoreInformation();
             jQueryBopis("body").append($pickUpModal);
 
-            $btn.on('click', openBopisModal);
+            const hcStoreChangeButton = jQueryBopis('#hc-store-change-button');
+            hcStoreChangeButton.on('click', openBopisModal);
+            bopisButtonEnabled.on('click', updateCartWithCurrentStore);
 
             jQueryBopis(".hc-close").on('click', closeBopisModal);
             jQueryBopis(".hc-bopis-pick-up-button").on('click', handleAddToCartEvent);
@@ -176,36 +228,57 @@
         }
     }
 
-    function getStoreInformation (queryString) {
-        let accessToken = "";
-        // defined the distance to find the stores in this much radius area
-        let distance = 50;
-        // viewSize is used to define the number of stores to fetch
-        let viewSize = 50;
+    function updateCartWithCurrentStore() {
 
-        const query = !($location) || queryString ? {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q.op": "AND",
-                    "qf": "postalCode city state country storeCode storeName",
-                    "defType" : "edismax"
-                },
-                "query": `(*${queryString}*) OR \"${queryString}\"^100`,
-                "filter": "docType:STORE"
-            }
-        } : {
-            "json": {
-                "params": {
-                    "rows": `${viewSize}`,
-                    "q": "docType:STORE AND latlon_0_coordinate : * AND latlon_1_coordinate : *",
-                    "pt": `${$location.latitude}, ${$location.longitude}`,
-                    "d": `${distance}`,
-                    "fq": "{!geofilt}",
-                    "sort": "geodist() asc",
-                    "sfield": "latlon"
+        const currentStoreCode = getUserStorePreference();
+        const store = stores?.response?.docs?.find((store) => store.storeCode == currentStoreCode);
+
+        let addToCartForm = jQueryBopis(".hc-product-form");
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        // let merchant define the behavior whenever pick up button is clicked, merchant can define an event listener for this event
+        jQueryBopis(document).trigger('prePickUp');
+
+        // made the property hidden by adding underscore before the property name
+        let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[_pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
+        addToCartForm.append(facilityIdInput)
+
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''} ${store.address1 ? `, ${store.address1}` : ''} ${store.city ? `, ${store.city}` : ''}" type="hidden"/>`)
+        addToCartForm.append(facilityNameInput)
+
+        // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
+        jQueryBopis.ajax({
+            type: "POST",
+            url: '/cart/add.js',
+            data: addToCartForm.serialize(),
+            dataType: 'JSON',
+            success: function () {
+
+                // let merchant define the behavior after the item is successfully added as a pick up item, merchant can define an event listener for this event
+                jQueryBopis(document).trigger('postPickUp');
+
+                // redirecting the user to the cart page after the product gets added to the cart
+                if (bopisCustomConfig.enableCartRedirection) {
+                    location.replace('/cart');
                 }
             }
+        })
+
+        facilityIdInput.remove();
+        facilityNameInput.remove();
+    }
+
+    function getStoreInformation (queryString) {
+        const payload = {
+            viewSize: 100,
+            keyword: queryString
+        }
+
+        if ($location) {
+            payload["distance"] = 50
+            payload["point"] = `${$location.latitude}, ${$location.longitude}`
         }
 
         // applied a condition that if we have location permission then searching the stores for the current location
@@ -214,13 +287,9 @@
         return new Promise(function(resolve, reject) {
             jQueryBopis.ajax({
                 type: 'POST',
-                url: `${baseUrl}/api/solr-query`,
+                url: `${baseUrl}/api/storeLookup`,
                 crossDomain: true,
-                data: JSON.stringify(query),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + accessToken
-                },
+                data: payload,
                 success: function (res) {
                     resolve(res)
                 },
@@ -240,6 +309,7 @@
         payload[0].facilityId.map((facility) => {
             paramFacilityId += `&facilityId=${facility}`
         })
+        const viewSize = payload[0].facilityId.length
 
         let resp;
 
@@ -248,7 +318,7 @@
             resp = await new Promise(function(resolve, reject) {
                 jQueryBopis.ajax({
                     type: 'GET',
-                    url: `${baseUrl}/api/checkInventory?sku=${payload[0].sku}${paramFacilityId}`,
+                    url: `${baseUrl}/api/checkInventory?sku=${payload[0].sku}${paramFacilityId}&viewSize=${viewSize}`,
                     crossDomain: true,
                     headers: {
                         'Content-Type': 'application/json'
@@ -278,14 +348,10 @@
         }
 
         const queryString = jQueryBopis("#hc-bopis-store-pin").val();
-        let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
+        let storeInformation = queryString || $location ? await getStoreInformation(queryString).then(data => data).catch(err => err) : stores;
         let result = '';
 
-        const id = jQueryBopis("form[action='/cart/add']").serializeArray().find(ele => ele.name === "id").value
-        
-        // when using the demo instance we will use id as sku, and for dev instance we will use sku
-        // const sku = meta.product.variants.find(variant => variant.id == id).sku
-        const sku = id;
+        const sku = jQueryBopis(".hc_product_sku").text() ? jQueryBopis(".hc_product_sku").text() : jQueryBopis(".hc_product_sku").val();
 
         jQueryBopis('#hc-store-card').remove();
         if (event) eventTarget.prop("disabled", true);
@@ -314,11 +380,14 @@
             // mapping the inventory result with the locations to filter those stores whose inventory
             // is present and the store code is present in the locations.
             if (result.docs) {
+                storesWithInventory = result.docs;
                 result = storeInformation.response.docs.filter((location) => {
                     return result.docs.some((doc) => {
                         return doc.facilityId === location.storeCode && doc.atp > 0;
                     })
                 })
+
+                updateCurrentStoreInformation();
             }
         }
 
@@ -368,17 +437,24 @@
                 let $storeCard = jQueryBopis('<div id="hc-store-card"></div>');
                 let $storeInformationCard = jQueryBopis(`
                 <div id="hc-store-details">
-                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? store.stateCode : ''}, ${store.postalCode ? store.postalCode : ''} ${store.countryCode ? store.countryCode : ''}</p></div>
+                    <div id="hc-details-column"><h4 class="hc-store-title">${store.storeName ? store.storeName : ''}</h4><p>${store.address1 ? store.address1 : ''}</p><p>${store.city ? store.city : ''} ${store.stateCode ? `, ${store.stateCode}` : ''} ${store.postalCode ? `, ${store.postalCode}` : ''} ${store.countryCode ? `, ${store.countryCode}` : ''}</p></div>
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
-                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
+                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-button hc-store-pick-up-button">Pick Up Here</button>');
                 $pickUpButton.on("click", updateCart.bind(null, store));
+
+                let $myStoreButton = jQueryBopis('<button class="btn btn--secondary-accent hc-button hc-home-store-button">Set as a home store</button>');
+                $myStoreButton.on("click", setUserStorePreferenceFromPDP.bind(null, store.storeCode));
+
+                let $buttonWrapper = jQueryBopis('<div class="hc-button-wrapper"></div>');
+                $buttonWrapper.append($pickUpButton);
+                $buttonWrapper.append($myStoreButton);
 
                 let $lineBreak = jQueryBopis('<hr/>')
 
                 $storeCard.append($storeInformationCard);
-                $storeCard.append($pickUpButton);
+                $storeCard.append($buttonWrapper);
                 $storeCard.append($lineBreak);
 
                 jQueryBopis('.hc-store-information').append($storeCard);
@@ -400,7 +476,7 @@
     // will add product to cart with a custom property pickupstore
     function updateCart(store, event) {
 
-        let addToCartForm = jQueryBopis("form[action='/cart/add']");
+        let addToCartForm = jQueryBopis(".hc-product-form");
 
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -412,7 +488,7 @@
         let facilityIdInput = jQueryBopis(`<input id="hc-store-code" name="properties[_pickupstore]" value=${store.storeCode ? store.storeCode : ''} type="hidden"/>`)
         addToCartForm.append(facilityIdInput)
 
-        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''}, ${store.address1 ? store.address1 : ''}, ${store.city ? store.city : ''}" type="hidden"/>`)
+        let facilityNameInput = jQueryBopis(`<input id="hc-pickupstore-address" name="properties[Pickup Store]" value="${store.storeName ? store.storeName : ''} ${store.address1 ? `, ${store.address1}` : ''} ${store.city ? `, ${store.city}` : ''}" type="hidden"/>`)
         addToCartForm.append(facilityNameInput)
 
         // using the cart add endpoint to add the product to cart, as using the theme specific methods is not recommended.
@@ -439,9 +515,10 @@
     // TODO move it to intialise block
     // To check whether the url has changed or not, for making sure that the variant is changed.
     let url = location.href; 
-    new MutationObserver(() => {
+    new MutationObserver(async () => {
         if (location.href !== url) {
             url = location.href;
+            updateCurrentStoreInformation();
             initialiseBopis();
         }
         // added condition to run the script again as when removing a product the script does not run

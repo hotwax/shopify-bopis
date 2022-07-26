@@ -43,11 +43,6 @@ p {
     content: 'x';
 }
 
-.hc-store-pick-up-button {
-    margin-top: 1rem;
-    width: 100%;
-}
-
 .hc-bopis-pick-up-button {
     padding: 10px 5px;
 }
@@ -89,6 +84,15 @@ p {
 
 #hc-details-column {
     flex: 0 0 50%;
+}
+
+.hc-button-wrapper {
+    display: flex;
+}
+
+.hc-button {
+    flex: 1;
+    margin-top: 1rem;
 }
 
 @media (min-width: 997px) {
