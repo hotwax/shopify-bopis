@@ -173,13 +173,16 @@
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis(".hc-product-form");
-            const sku = jQueryBopis("input[class='hc_product_sku']").val();
-
-            // Do not enable BOPIS when the current product is not available
-            if(!(await isProductAvailable(sku))) return;
+            const sku = jQueryBopis(".hc_product_sku").text() ? jQueryBopis(".hc_product_sku").text() : jQueryBopis(".hc_product_sku").val();
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
             const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
+
+            // Do not enable BOPIS when the current product is not available
+            if(!(await isProductAvailable(sku))) {
+              bopisButton.remove();
+              return;
+            }
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
@@ -348,7 +351,7 @@
         let storeInformation = queryString || $location ? await getStoreInformation(queryString).then(data => data).catch(err => err) : stores;
         let result = '';
 
-        const sku = jQueryBopis("input[class='hc_product_sku']").val();
+        const sku = jQueryBopis(".hc_product_sku").text() ? jQueryBopis(".hc_product_sku").text() : jQueryBopis(".hc_product_sku").val();
 
         jQueryBopis('#hc-store-card').remove();
         if (event) eventTarget.prop("disabled", true);
@@ -512,9 +515,10 @@
     // TODO move it to intialise block
     // To check whether the url has changed or not, for making sure that the variant is changed.
     let url = location.href; 
-    new MutationObserver(() => {
+    new MutationObserver(async () => {
         if (location.href !== url) {
             url = location.href;
+            updateCurrentStoreInformation();
             initialiseBopis();
         }
         // added condition to run the script again as when removing a product the script does not run
