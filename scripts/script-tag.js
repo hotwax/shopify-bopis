@@ -3,6 +3,7 @@
     let $location;
     let backdrop;
     let currentProduct;
+    let variantSku;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -101,18 +102,6 @@
         });
     }
 
-    async function isProductAvailable(variantSku) {
-        const hasInventoryOnShopify = jQueryBopis("input[class='hc_inventory']").val() > 0
-        if (currentProduct) {
-            if (hasInventoryOnShopify) {
-                return true;
-            } else {
-                return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
-            }
-        }
-        return false;
-    }
-
     async function isProductProrderedOrBackordered (variantSku) {
         if (currentProduct.tags.includes('HC:Pre-Order') || currentProduct.tags.includes('HC:Backorder')) {
             return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
@@ -125,15 +114,31 @@
             await getCurrentProduct(); // fetch the information for the current product
             await getCurrentLocation();
 
+            let productId = ''
+            if (jQueryBopis('div[id^=ProductSection-]').length == 1) {
+                productId = jQueryBopis('div[id^=ProductSection-]')[0].id.split('-')[1]
+            } else {
+                jQueryBopis('div[id^=ProductSection-]').each((index, section) => {
+
+                    if(section.className.split(' ').includes('active')) {
+                        productId = section.id.split('-')[1]
+                        return;
+                    }
+                })
+            }
+            const variantId = jQueryBopis(`#ProductSelect-${productId}`).val();
+            const variantInformation = JSON.parse(jQuery(`#HCProductInformation-${productId}`).text().replace(/\\n/g, ''));
+            variantSku = variantInformation[variantId].sku;
+
             jQueryBopis(".hc-store-information").remove();
             jQueryBopis(".hc-bopis-modal").remove();
 
             // TODO Simplify this [name='id']. There is no need to serialize
             const cartForm = jQueryBopis(".hc-product-form");
-            const sku = jQueryBopis("input[class='hc_product_sku']").val();
+            const sku = variantSku;
 
             // Do not enable BOPIS when the current product is not available
-            if(!(await isProductAvailable(sku))) return;
+            if(!variantInformation[variantId] || variantInformation[variantId].inventory <= 0) return;
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
             const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
@@ -263,7 +268,7 @@
         let storeInformation = await getStoreInformation(queryString).then(data => data).catch(err => err);
         let result = '';
 
-        const sku = jQueryBopis("input[class='hc_product_sku']").val();
+        const sku = variantSku;
 
         jQueryBopis('#hc-store-card').remove();
         if (event) eventTarget.prop("disabled", true);
