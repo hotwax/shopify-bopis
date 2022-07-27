@@ -102,13 +102,6 @@
         });
     }
 
-    async function isProductProrderedOrBackordered (variantSku) {
-        if (currentProduct.tags.includes('HC:Pre-Order') || currentProduct.tags.includes('HC:Backorder')) {
-            return currentProduct.variants.find((variant) => variant.sku == variantSku).inventory_policy === 'continue'
-        }
-        return false;
-    }
-
     async function initialiseBopis () {
         if (location.pathname.includes('products')) {
             await getCurrentProduct(); // fetch the information for the current product
@@ -142,9 +135,6 @@
 
             const bopisButton = jQueryBopis("#hc-bopis-button");
             const bopisButtonEnabled = jQueryBopis("#hc-bopis-button > button");
-
-            // check if the product is Pre-order or backorder and having continue selling enabled and if yes, then do not enable bopis
-            if (await isProductProrderedOrBackordered(meta.product.id, sku).catch(err => false)) return;
 
             let $pickUpModal = jQueryBopis(`<div id="hc-bopis-modal" class="hc-bopis-modal">
                 <div class="hc-modal-content">
