@@ -2,6 +2,7 @@
     let jQueryBopis;
     let $location;
     let backdrop;
+    let isProductSoldOut;
 
     // defining a global object having properties which let merchant configure some behavior
     this.bopisCustomConfig = {
@@ -11,7 +12,6 @@
     // TODO Generate instance specific code URL in FTL. Used with <#noparse> after this code so that `` code is escaped
     // let baseUrl = '<@ofbizUrl secure="true"></@ofbizUrl>';
     let baseUrl = '';
-    let shopUrl = window.origin;
 
     let loadScript = function(url, callback){
 
@@ -40,7 +40,7 @@
     let style = document.createElement("link");
     style.rel = 'stylesheet';
     style.type = 'text/css';
-    style.href = `${baseUrl}/api/shopify-tag.min.css`;
+    style.href = `${baseUrl}/api/shopify-bopis.min.css`;
 
     document.getElementsByTagName("head")[0].appendChild(style);
 
@@ -95,30 +95,10 @@
         backdrop.remove();
     }
 
-    // TODO: add preorder check
-    function isProductProrderedOrBackordered (virtualId, variantId) {
-        return new Promise(function(resolve, reject) {
-            jQueryBopis.ajax({
-                type: 'GET',
-                // need to update this endpoint to use correct endpoint for checking the product preorder availability
-                url: `${shopUrl}/admin/products/${virtualId}.json`,
-                crossDomain: true,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                success: function (data) {
-                    if (data.product.tags.includes('Pre-Order') || data.product.tags.includes('Back-Order')) {
-                        resolve(data.product.variants.find((variant) => variant.id == variantId).inventory_policy === 'continue')
-                    }
-                    else {
-                        resolve(false)
-                    }
-                },
-                error: function (err) {
-                    reject(err)
-                }
-            })
-        })
+    async function checkProductAvailability (variantId) {
+        await jQueryBopis.getJSON(`${window.location.pathname}.js`, function(product) {
+            isProductSoldOut = !product.variants.find((variant) => variant.id == variantId).available;
+        });
     }
 
     async function initialiseBopis () {
@@ -134,7 +114,7 @@
             const cartForm = jQueryBopis("form[action='/cart/add']");
             const id = cartForm.serializeArray().find(ele => ele.name === "id").value;
 
-            if (await isProductProrderedOrBackordered(meta.product.id, id).catch(err => false)) return;
+            await checkProductAvailability(id);
             
             let $element = jQueryBopis("form[action='/cart/add']");
 
@@ -372,8 +352,16 @@
                     <div id="hc-details-column"><p>In stock</p><p>${store.storePhone ? store.storePhone : ''}</p><p>${ store.regularHours ? 'Open Today: ' + tConvert(openData(store.regularHours).openTime) + ' - ': ''} ${store.regularHours ? tConvert(openData(store.regularHours).closeTime) : ''}</p></div>
                 </div>`);
 
-                let $pickUpButton = jQueryBopis('<button class="btn btn--secondary-accent hc-store-pick-up-button">Pick Up Here</button>');
-                $pickUpButton.on("click", updateCart.bind(null, store));
+                let $pickUpButton = jQueryBopis(`<button class="btn btn--secondary-accent hc-store-pick-up-button">${isProductSoldOut ? 'Call Store' : 'Pick Up Here'}</button>`);
+                // added condition to disable button when the product is sold out and storePhone is not present
+                isProductSoldOut && !store.storePhone && $pickUpButton.prop('disabled', true)
+
+                $pickUpButton.on("click", isProductSoldOut ? function () {
+                    // checking if storePhone is present then only adding the call functionality
+                    if (store.storePhone) {
+                        window.location = `tel:${store.storePhone}`
+                    }
+                } : updateCart.bind(null, store));
 
                 let $lineBreak = jQueryBopis('<hr/>')
 
