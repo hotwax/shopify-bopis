@@ -1,0 +1,17 @@
+query RunInput {
+  cart {
+    lines {
+        attribute(key: "_pickupstore") {
+            key
+            value
+        }
+    }
+    deliveryGroups {
+        id
+        deliveryOptions {
+            handle
+            title
+        }
+    }
+  }
+}
